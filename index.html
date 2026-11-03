@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>nvpn-esp32 แดชบอร์ด</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E📟%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --fg:#1b1f24; --muted:#6b7280; --line:#e2e5ea;
+  --accent:#2563eb; --ok:#16a34a; --bad:#dc2626; --warn:#d97706; --track:#e5e7eb;
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1216; --card:#181c22; --fg:#e8eaed; --muted:#9aa3af; --line:#2a303a;
+    --accent:#60a5fa; --ok:#4ade80; --bad:#f87171; --warn:#fbbf24; --track:#2a303a;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI","Noto Sans Thai",Tahoma,sans-serif;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header h1{font-size:16px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:4px 9px;border:1px solid var(--line);border-radius:999px;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--ok)} .dot.off{background:var(--bad)} .dot.mid{background:var(--warn)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--bad)}
+button.icon{padding:6px 10px}
+main{padding:12px;max-width:1100px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;position:relative;min-height:120px;display:flex;flex-direction:column;gap:8px}
+.card.wide{grid-column:span 2}
+@media (max-width:480px){.card.wide{grid-column:span 1}}
+.card h3{margin:0;font-size:13px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.card .key{font-weight:400;font-size:11px;opacity:.8}
+.big{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.big small{font-size:14px;font-weight:400;color:var(--muted);margin-left:4px}
+.stale .big,.stale svg,.stale canvas{opacity:.45}
+.tools{display:none;gap:6px;margin-top:auto}
+body.edit .tools{display:flex}
+.addcard{border-style:dashed;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;display:none}
+body.edit .addcard{display:flex}
+/* switch */
+.sw{width:76px;height:42px;border-radius:999px;background:var(--track);border:0;position:relative;padding:0;transition:background .15s}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:34px;height:34px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0004;transition:transform .15s}
+.sw.on{background:var(--ok)} .sw.on::after{transform:translateX(34px)}
+.sw.pending{outline:2px dashed var(--warn);outline-offset:2px}
+.swrow{display:flex;align-items:center;gap:12px}
+.swrow span{font-weight:600}
+/* slider */
+input[type=range]{width:100%;accent-color:var(--accent);height:34px}
+/* gauge */
+.gauge{width:100%;max-width:200px;align-self:center}
+.gauge text{fill:var(--fg);font-weight:700;font-size:26px;text-anchor:middle}
+.gauge .u{fill:var(--muted);font-size:12px;font-weight:400}
+/* chart */
+canvas{width:100%;height:150px;display:block;cursor:pointer}
+.sub{font-size:11px;color:var(--muted)}
+/* dialogs */
+dialog{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:var(--radius);padding:16px;width:min(520px,94vw);max-height:90vh}
+dialog::backdrop{background:#0008}
+dialog h2{margin:0 0 10px;font-size:17px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 3px}
+input[type=text],input[type=number],textarea,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+textarea{min-height:70px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.actions>button{flex:0 0 auto}
+code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all}
+.note{font-size:12px;color:var(--muted);margin-top:6px}
+.warnbox{border:1px solid var(--warn);border-radius:10px;padding:8px 10px;font-size:12px;margin-top:8px}
+#log{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;max-height:180px;overflow:auto;white-space:pre-wrap;display:none;margin-top:12px}
+#log.show{display:block}
+footer{max-width:1100px;margin:0 auto;padding:6px 12px 24px;font-size:11px;color:var(--muted)}
+#toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:#111c;color:#fff;padding:9px 14px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:30px 10px}
+
+</style>
+<style>
+.hero{grid-column:1/-1;text-align:center;padding:26px 14px;color:var(--muted)}
+.hero h2{color:var(--fg);margin:0 0 6px;font-size:18px}
+.hero ol{display:inline-block;text-align:left;margin:10px 0 16px;padding-left:20px}
+.hero button{margin:3px}
+.pin{display:inline-block;font:600 11px ui-monospace,Menlo,Consolas,monospace;background:var(--track);border-radius:6px;padding:1px 6px;color:var(--fg)}
+#cCode{min-height:230px;white-space:pre-wrap;word-break:break-all;font-size:12px}
+table.pins{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+table.pins td,table.pins th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+table.pins th{color:var(--muted);font-weight:500;font-size:11px}
+.steps{margin:0;padding-left:20px;font-size:13px}
+.steps li{margin:3px 0}
+header .add{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <h1>nvpn <span class="sub" id="boardName"></span></h1>
+  <span class="pill" title="สถานะบอร์ด"><span class="dot" id="dBoard"></span><span id="tBoard">รอบอร์ด</span></span>
+  <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ (กำหนดไว้ให้แล้ว)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
+  <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
+  <button class="icon" id="bConn" title="โค้ดเชื่อมบอร์ด">🔌</button>
+  <button class="icon" id="bEdit" title="จัดเรียง/แก้ไข/ลบ">✏️</button>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div id="log"></div>
+</main>
+<footer>
+  คำสั่ง/ค่าที่ส่งเซ็นแต่<b>ไม่เข้ารหัส</b> ใครอ่านจากรีเลย์ได้ก็เห็น — อย่าส่งความลับ ·
+  กราฟย้อนหลังเก็บในเบราว์เซอร์นี้เท่านั้น ·
+  <a href="#" id="bLog" style="color:inherit">log</a>
+</footer>
+<div id="toast"></div>
+
+<!-- เพิ่ม/แก้ widget -->
+<dialog id="dlgW">
+  <h2 id="wTitle">เพิ่ม widget</h2>
+  <label for="wType">ชนิด</label>
+  <select id="wType">
+    <option value="switch">สวิตช์ on/off — สั่งบอร์ด</option>
+    <option value="slider">สไลเดอร์ — สั่งบอร์ด</option>
+    <option value="value">ตัวเลขค่า — บอร์ดส่งมาแสดง</option>
+    <option value="gauge">เกจ — บอร์ดส่งมาแสดง</option>
+    <option value="chart">กราฟย้อนหลัง — บอร์ดส่งมาแสดง</option>
+  </select>
+  <label for="wLabel">ชื่อ (เช่น ไฟหน้าบ้าน, อุณหภูมิ)</label>
+  <input type="text" id="wLabel" autocomplete="off">
+  <div class="row" id="wRange">
+    <div><label for="wMin">ต่ำสุด</label><input type="number" id="wMin" step="any"></div>
+    <div><label for="wMax">สูงสุด</label><input type="number" id="wMax" step="any"></div>
+    <div id="wStepBox"><label for="wStep">ก้าว</label><input type="number" id="wStep" step="any" min="0"></div>
+    <div><label for="wUnit">หน่วย</label><input type="text" id="wUnit" autocomplete="off" placeholder="°C"></div>
+  </div>
+  <div class="note">ตำแหน่ง (pin) ในโค้ดบอร์ด: <span class="pin" id="wPin"></span> — ตั้งให้อัตโนมัติ ดูทั้งหมดได้ที่ปุ่ม 🔌</div>
+  <div class="actions">
+    <button id="wClose">ยกเลิก</button>
+    <button id="wSave" class="primary">บันทึก</button>
+  </div>
+</dialog>
+
+<!-- โค้ดเชื่อมบอร์ด -->
+<dialog id="dlgConn">
+  <h2>🔌 เชื่อมบอร์ด</h2>
+  <ol class="steps">
+    <li>สร้าง widget ในหน้านี้ให้ครบก่อน (ปุ่ม ＋)</li>
+    <li>คัดลอกโค้ดด้านล่างไปวางบนสุดของสเก็ตช์ <code>.ino</code></li>
+    <li>ในโค้ดบอร์ด อ่าน/เขียนค่าตาม pin ในตาราง</li>
+  </ol>
+  <label for="cCode">โค้ดสำหรับสเก็ตช์ (อัปเดตตาม widget ที่มีตอนนี้)</label>
+  <textarea id="cCode" readonly spellcheck="false"></textarea>
+  <div class="actions" style="justify-content:flex-start"><button id="cCopy" class="primary">คัดลอกโค้ด</button></div>
+  <div class="warnbox">โค้ดนี้มี<b>กุญแจลับของบอร์ด</b> อย่าอัปโหลดสเก็ตช์ที่ใส่ค่าจริงขึ้น GitHub หรือโพสต์ที่สาธารณะ — ใครมีกุญแจนี้ปลอมตัวเป็นบอร์ดได้</div>
+  <label>ตาราง pin</label>
+  <table class="pins"><thead><tr><th>pin</th><th>widget</th><th>ทิศทาง</th></tr></thead><tbody id="cPins"></tbody></table>
+  <label>ตัวอย่างวิธีใช้ในโค้ดบอร์ด</label>
+  <textarea id="cUse" readonly spellcheck="false" style="min-height:130px"></textarea>
+  <div class="note">ติดตั้งไลบรารี <code>nvpn-esp32</code> (มี <code>NvpnDash.h</code>), <code>WebSockets</code> (Markus Sattler) และ <code>ArduinoJson</code> v7 ใน Arduino IDE ก่อน <code>NvpnDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที</div>
+  <label>ย้ายไปเครื่องอื่น / สำรอง</label>
+  <div class="row">
+    <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
+    <button id="cImp">ใส่รหัสย้ายเครื่อง</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="cRegen" class="danger">สร้างกุญแจใหม่ทั้งหมด</button>
+    <button id="cClr">ล้างกราฟ</button>
+  </div>
+  <div class="actions"><button id="cClose" class="primary">ปิด</button></div>
+</dialog>
+
+<!-- ข้อความทั่วไป -->
+<dialog id="dlgTxt">
+  <h2 id="tTitle"></h2>
+  <textarea id="tArea" spellcheck="false" style="min-height:140px"></textarea>
+  <div class="actions">
+    <button id="tClose">ปิด</button>
+    <button id="tOk" class="primary">ตกลง</button>
+  </div>
+</dialog>
+
+<script>
+(()=>{var ut=typeof globalThis=="object"&&"crypto"in globalThis?globalThis.crypto:void 0;function dt(t){return t instanceof Uint8Array||ArrayBuffer.isView(t)&&t.constructor.name==="Uint8Array"}function St(t){if(!Number.isSafeInteger(t)||t<0)throw new Error("positive integer expected, got "+t)}function Y(t,...e){if(!dt(t))throw new Error("Uint8Array expected");if(e.length>0&&!e.includes(t.length))throw new Error("Uint8Array expected of length "+e+", got length="+t.length)}function Zt(t){if(typeof t!="function"||typeof t.create!="function")throw new Error("Hash should be wrapped by utils.createHasher");St(t.outputLen),St(t.blockLen)}function gt(t,e=!0){if(t.destroyed)throw new Error("Hash instance has been destroyed");if(e&&t.finished)throw new Error("Hash#digest() has already been called")}function Oe(t,e){Y(t);let r=e.outputLen;if(t.length<r)throw new Error("digestInto() expects output buffer of length at least "+r)}function lt(...t){for(let e=0;e<t.length;e++)t[e].fill(0)}function Kt(t){return new DataView(t.buffer,t.byteOffset,t.byteLength)}function z(t,e){return t<<32-e|t>>>e}var Te=typeof Uint8Array.from([]).toHex=="function"&&typeof Uint8Array.fromHex=="function",_n=Array.from({length:256},(t,e)=>e.toString(16).padStart(2,"0"));function D(t){if(Y(t),Te)return t.toHex();let e="";for(let r=0;r<t.length;r++)e+=_n[t[r]];return e}var W={_0:48,_9:57,A:65,F:70,a:97,f:102};function Ue(t){if(t>=W._0&&t<=W._9)return t-W._0;if(t>=W.A&&t<=W.F)return t-(W.A-10);if(t>=W.a&&t<=W.f)return t-(W.a-10)}function P(t){if(typeof t!="string")throw new Error("hex string expected, got "+typeof t);if(Te)return Uint8Array.fromHex(t);let e=t.length,r=e/2;if(e%2)throw new Error("hex string expected, got unpadded hex of length "+e);let n=new Uint8Array(r);for(let o=0,s=0;o<r;o++,s+=2){let i=Ue(t.charCodeAt(s)),c=Ue(t.charCodeAt(s+1));if(i===void 0||c===void 0){let a=t[s]+t[s+1];throw new Error('hex string expected, got non-hex character "'+a+'" at index '+s)}n[o]=i*16+c}return n}function Mt(t){if(typeof t!="string")throw new Error("string expected");return new Uint8Array(new TextEncoder().encode(t))}function It(t){return typeof t=="string"&&(t=Mt(t)),Y(t),t}function j(...t){let e=0;for(let n=0;n<t.length;n++){let o=t[n];Y(o),e+=o.length}let r=new Uint8Array(e);for(let n=0,o=0;n<t.length;n++){let s=t[n];r.set(s,o),o+=s.length}return r}var wt=class{};function Le(t){let e=n=>t().update(It(n)).digest(),r=t();return e.outputLen=r.outputLen,e.blockLen=r.blockLen,e.create=()=>t(),e}function X(t=32){if(ut&&typeof ut.getRandomValues=="function")return ut.getRandomValues(new Uint8Array(t));if(ut&&typeof ut.randomBytes=="function")return Uint8Array.from(ut.randomBytes(t));throw new Error("crypto.getRandomValues must be defined")}function Un(t,e,r,n){if(typeof t.setBigUint64=="function")return t.setBigUint64(e,r,n);let o=BigInt(32),s=BigInt(4294967295),i=Number(r>>o&s),c=Number(r&s),a=n?4:0,l=n?0:4;t.setUint32(e+a,i,n),t.setUint32(e+l,c,n)}function Re(t,e,r){return t&e^~t&r}function Ne(t,e,r){return t&e^t&r^e&r}var jt=class extends wt{constructor(e,r,n,o){super(),this.finished=!1,this.length=0,this.pos=0,this.destroyed=!1,this.blockLen=e,this.outputLen=r,this.padOffset=n,this.isLE=o,this.buffer=new Uint8Array(e),this.view=Kt(this.buffer)}update(e){gt(this),e=It(e),Y(e);let{view:r,buffer:n,blockLen:o}=this,s=e.length;for(let i=0;i<s;){let c=Math.min(o-this.pos,s-i);if(c===o){let a=Kt(e);for(;o<=s-i;i+=o)this.process(a,i);continue}n.set(e.subarray(i,i+c),this.pos),this.pos+=c,i+=c,this.pos===o&&(this.process(r,0),this.pos=0)}return this.length+=e.length,this.roundClean(),this}digestInto(e){gt(this),Oe(e,this),this.finished=!0;let{buffer:r,view:n,blockLen:o,isLE:s}=this,{pos:i}=this;r[i++]=128,lt(this.buffer.subarray(i)),this.padOffset>o-i&&(this.process(n,0),i=0);for(let x=i;x<o;x++)r[x]=0;Un(n,o-8,BigInt(this.length*8),s),this.process(n,0);let c=Kt(e),a=this.outputLen;if(a%4)throw new Error("_sha2: outputLen should be aligned to 32bit");let l=a/4,p=this.get();if(l>p.length)throw new Error("_sha2: outputLen bigger than state");for(let x=0;x<l;x++)c.setUint32(4*x,p[x],s)}digest(){let{buffer:e,outputLen:r}=this;this.digestInto(e);let n=e.slice(0,r);return this.destroy(),n}_cloneInto(e){e||(e=new this.constructor),e.set(...this.get());let{blockLen:r,buffer:n,length:o,finished:s,destroyed:i,pos:c}=this;return e.destroyed=i,e.finished=s,e.length=o,e.pos=c,o%r&&e.buffer.set(n),e}clone(){return this._cloneInto()}},Q=Uint32Array.from([1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]);var On=Uint32Array.from([1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]),rt=new Uint32Array(64),$t=class extends jt{constructor(e=32){super(64,e,8,!1),this.A=Q[0]|0,this.B=Q[1]|0,this.C=Q[2]|0,this.D=Q[3]|0,this.E=Q[4]|0,this.F=Q[5]|0,this.G=Q[6]|0,this.H=Q[7]|0}get(){let{A:e,B:r,C:n,D:o,E:s,F:i,G:c,H:a}=this;return[e,r,n,o,s,i,c,a]}set(e,r,n,o,s,i,c,a){this.A=e|0,this.B=r|0,this.C=n|0,this.D=o|0,this.E=s|0,this.F=i|0,this.G=c|0,this.H=a|0}process(e,r){for(let x=0;x<16;x++,r+=4)rt[x]=e.getUint32(r,!1);for(let x=16;x<64;x++){let f=rt[x-15],u=rt[x-2],g=z(f,7)^z(f,18)^f>>>3,y=z(u,17)^z(u,19)^u>>>10;rt[x]=y+rt[x-7]+g+rt[x-16]|0}let{A:n,B:o,C:s,D:i,E:c,F:a,G:l,H:p}=this;for(let x=0;x<64;x++){let f=z(c,6)^z(c,11)^z(c,25),u=p+f+Re(c,a,l)+On[x]+rt[x]|0,y=(z(n,2)^z(n,13)^z(n,22))+Ne(n,o,s)|0;p=l,l=a,a=c,c=i+u|0,i=s,s=o,o=n,n=u+y|0}n=n+this.A|0,o=o+this.B|0,s=s+this.C|0,i=i+this.D|0,c=c+this.E|0,a=a+this.F|0,l=l+this.G|0,p=p+this.H|0,this.set(n,o,s,i,c,a,l,p)}roundClean(){lt(rt)}destroy(){this.set(0,0,0,0,0,0,0,0),lt(this.buffer)}};var yt=Le(()=>new $t);var Gt=class extends wt{constructor(e,r){super(),this.finished=!1,this.destroyed=!1,Zt(e);let n=It(r);if(this.iHash=e.create(),typeof this.iHash.update!="function")throw new Error("Expected instance of class which extends utils.Hash");this.blockLen=this.iHash.blockLen,this.outputLen=this.iHash.outputLen;let o=this.blockLen,s=new Uint8Array(o);s.set(n.length>o?e.create().update(n).digest():n);for(let i=0;i<s.length;i++)s[i]^=54;this.iHash.update(s),this.oHash=e.create();for(let i=0;i<s.length;i++)s[i]^=106;this.oHash.update(s),lt(s)}update(e){return gt(this),this.iHash.update(e),this}digestInto(e){gt(this),Y(e,this.outputLen),this.finished=!0,this.iHash.digestInto(e),this.oHash.update(e),this.oHash.digestInto(e),this.destroy()}digest(){let e=new Uint8Array(this.oHash.outputLen);return this.digestInto(e),e}_cloneInto(e){e||(e=Object.create(Object.getPrototypeOf(this),{}));let{oHash:r,iHash:n,finished:o,destroyed:s,blockLen:i,outputLen:c}=this;return e=e,e.finished=o,e.destroyed=s,e.blockLen=i,e.outputLen=c,e.oHash=r._cloneInto(e.oHash),e.iHash=n._cloneInto(e.iHash),e}clone(){return this._cloneInto()}destroy(){this.destroyed=!0,this.oHash.destroy(),this.iHash.destroy()}},re=(t,e,r)=>new Gt(t,e).update(r).digest();re.create=(t,e)=>new Gt(t,e);var ie=BigInt(0),se=BigInt(1);function Ht(t,e=""){if(typeof t!="boolean"){let r=e&&`"${e}"`;throw new Error(r+"expected boolean, got type="+typeof t)}return t}function ot(t,e,r=""){let n=dt(t),o=t?.length,s=e!==void 0;if(!n||s&&o!==e){let i=r&&`"${r}" `,c=s?` of length ${e}`:"",a=n?`length=${o}`:`type=${typeof t}`;throw new Error(i+"expected Uint8Array"+c+", got "+a)}return t}function _t(t){let e=t.toString(16);return e.length&1?"0"+e:e}function Ce(t){if(typeof t!="string")throw new Error("hex string expected, got "+typeof t);return t===""?ie:BigInt("0x"+t)}function J(t){return Ce(D(t))}function ce(t){return Y(t),Ce(D(Uint8Array.from(t).reverse()))}function mt(t,e){return P(t.toString(16).padStart(e*2,"0"))}function fe(t,e){return mt(t,e).reverse()}function C(t,e,r){let n;if(typeof e=="string")try{n=P(e)}catch(s){throw new Error(t+" must be hex string or Uint8Array, cause: "+s)}else if(dt(e))n=Uint8Array.from(e);else throw new Error(t+" must be hex string or Uint8Array");let o=n.length;if(typeof r=="number"&&o!==r)throw new Error(t+" of length "+r+" expected, got "+o);return n}var oe=t=>typeof t=="bigint"&&ie<=t;function Ut(t,e,r){return oe(t)&&oe(e)&&oe(r)&&e<=t&&t<r}function qe(t,e,r,n){if(!Ut(e,r,n))throw new Error("expected valid "+t+": "+r+" <= n < "+n+", got "+e)}function Pt(t){let e;for(e=0;t>ie;t>>=se,e+=1);return e}var st=t=>(se<<BigInt(t))-se;function ke(t,e,r){if(typeof t!="number"||t<2)throw new Error("hashLen must be a number");if(typeof e!="number"||e<2)throw new Error("qByteLen must be a number");if(typeof r!="function")throw new Error("hmacFn must be a function");let n=u=>new Uint8Array(u),o=u=>Uint8Array.of(u),s=n(t),i=n(t),c=0,a=()=>{s.fill(1),i.fill(0),c=0},l=(...u)=>r(i,s,...u),p=(u=n(0))=>{i=l(o(0),u),s=l(),u.length!==0&&(i=l(o(1),u),s=l())},x=()=>{if(c++>=1e3)throw new Error("drbg: tried 1000 values");let u=0,g=[];for(;u<e;){s=l();let y=s.slice();g.push(y),u+=s.length}return j(...g)};return(u,g)=>{a(),p(u);let y;for(;!(y=g(x()));)p();return a(),y}}function Ot(t,e,r={}){if(!t||typeof t!="object")throw new Error("expected valid options object");function n(o,s,i){let c=t[o];if(i&&c===void 0)return;let a=typeof c;if(a!==s||c===null)throw new Error(`param "${o}" is invalid: expected ${s}, got ${a}`)}Object.entries(e).forEach(([o,s])=>n(o,s,!1)),Object.entries(r).forEach(([o,s])=>n(o,s,!0))}function ae(t){let e=new WeakMap;return(r,...n)=>{let o=e.get(r);if(o!==void 0)return o;let s=t(r,...n);return e.set(r,s),s}}var K=BigInt(0),Z=BigInt(1),ht=BigInt(2),Ze=BigInt(3),Ke=BigInt(4),Me=BigInt(5),Tn=BigInt(7),je=BigInt(8),Ln=BigInt(9),$e=BigInt(16);function $(t,e){let r=t%e;return r>=K?r:e+r}function G(t,e,r){let n=t;for(;e-- >K;)n*=n,n%=r;return n}function Ve(t,e){if(t===K)throw new Error("invert: expected non-zero number");if(e<=K)throw new Error("invert: expected positive modulus, got "+e);let r=$(t,e),n=e,o=K,s=Z,i=Z,c=K;for(;r!==K;){let l=n/r,p=n%r,x=o-i*l,f=s-c*l;n=r,r=p,o=i,s=c,i=x,c=f}if(n!==Z)throw new Error("invert: does not exist");return $(o,e)}function ue(t,e,r){if(!t.eql(t.sqr(e),r))throw new Error("Cannot find square root")}function Ge(t,e){let r=(t.ORDER+Z)/Ke,n=t.pow(e,r);return ue(t,n,e),n}function Rn(t,e){let r=(t.ORDER-Me)/je,n=t.mul(e,ht),o=t.pow(n,r),s=t.mul(e,o),i=t.mul(t.mul(s,ht),o),c=t.mul(s,t.sub(i,t.ONE));return ue(t,c,e),c}function Nn(t){let e=it(t),r=Pe(t),n=r(e,e.neg(e.ONE)),o=r(e,n),s=r(e,e.neg(n)),i=(t+Tn)/$e;return(c,a)=>{let l=c.pow(a,i),p=c.mul(l,n),x=c.mul(l,o),f=c.mul(l,s),u=c.eql(c.sqr(p),a),g=c.eql(c.sqr(x),a);l=c.cmov(l,p,u),p=c.cmov(f,x,g);let y=c.eql(c.sqr(p),a),H=c.cmov(l,p,y);return ue(c,H,a),H}}function Pe(t){if(t<Ze)throw new Error("sqrt is not defined for small field");let e=t-Z,r=0;for(;e%ht===K;)e/=ht,r++;let n=ht,o=it(t);for(;De(o,n)===1;)if(n++>1e3)throw new Error("Cannot find square root: probably non-prime P");if(r===1)return Ge;let s=o.pow(n,e),i=(e+Z)/ht;return function(a,l){if(a.is0(l))return l;if(De(a,l)!==1)throw new Error("Cannot find square root");let p=r,x=a.mul(a.ONE,s),f=a.pow(l,e),u=a.pow(l,i);for(;!a.eql(f,a.ONE);){if(a.is0(f))return a.ZERO;let g=1,y=a.sqr(f);for(;!a.eql(y,a.ONE);)if(g++,y=a.sqr(y),g===p)throw new Error("Cannot find square root");let H=Z<<BigInt(p-g-1),O=a.pow(x,H);p=g,x=a.sqr(O),f=a.mul(f,x),u=a.mul(u,O)}return u}}function Cn(t){return t%Ke===Ze?Ge:t%je===Me?Rn:t%$e===Ln?Nn(t):Pe(t)}var qn=["create","isValid","is0","neg","inv","sqrt","sqr","eql","add","sub","mul","pow","div","addN","subN","mulN","sqrN"];function de(t){let e={ORDER:"bigint",MASK:"bigint",BYTES:"number",BITS:"number"},r=qn.reduce((n,o)=>(n[o]="function",n),e);return Ot(t,r),t}function kn(t,e,r){if(r<K)throw new Error("invalid exponent, negatives unsupported");if(r===K)return t.ONE;if(r===Z)return e;let n=t.ONE,o=e;for(;r>K;)r&Z&&(n=t.mul(n,o)),o=t.sqr(o),r>>=Z;return n}function Yt(t,e,r=!1){let n=new Array(e.length).fill(r?t.ZERO:void 0),o=e.reduce((i,c,a)=>t.is0(c)?i:(n[a]=i,t.mul(i,c)),t.ONE),s=t.inv(o);return e.reduceRight((i,c,a)=>t.is0(c)?i:(n[a]=t.mul(i,n[a]),t.mul(i,c)),s),n}function De(t,e){let r=(t.ORDER-Z)/ht,n=t.pow(e,r),o=t.eql(n,t.ONE),s=t.eql(n,t.ZERO),i=t.eql(n,t.neg(t.ONE));if(!o&&!s&&!i)throw new Error("invalid Legendre symbol result");return o?1:s?0:-1}function zt(t,e){e!==void 0&&St(e);let r=e!==void 0?e:t.toString(2).length,n=Math.ceil(r/8);return{nBitLength:r,nByteLength:n}}function it(t,e,r=!1,n={}){if(t<=K)throw new Error("invalid field: expected ORDER > 0, got "+t);let o,s,i=!1,c;if(typeof e=="object"&&e!=null){if(n.sqrt||r)throw new Error("cannot specify opts in two arguments");let f=e;f.BITS&&(o=f.BITS),f.sqrt&&(s=f.sqrt),typeof f.isLE=="boolean"&&(r=f.isLE),typeof f.modFromBytes=="boolean"&&(i=f.modFromBytes),c=f.allowedLengths}else typeof e=="number"&&(o=e),n.sqrt&&(s=n.sqrt);let{nBitLength:a,nByteLength:l}=zt(t,o);if(l>2048)throw new Error("invalid field: expected ORDER of <= 2048 bytes");let p,x=Object.freeze({ORDER:t,isLE:r,BITS:a,BYTES:l,MASK:st(a),ZERO:K,ONE:Z,allowedLengths:c,create:f=>$(f,t),isValid:f=>{if(typeof f!="bigint")throw new Error("invalid field element: expected bigint, got "+typeof f);return K<=f&&f<t},is0:f=>f===K,isValidNot0:f=>!x.is0(f)&&x.isValid(f),isOdd:f=>(f&Z)===Z,neg:f=>$(-f,t),eql:(f,u)=>f===u,sqr:f=>$(f*f,t),add:(f,u)=>$(f+u,t),sub:(f,u)=>$(f-u,t),mul:(f,u)=>$(f*u,t),pow:(f,u)=>kn(x,f,u),div:(f,u)=>$(f*Ve(u,t),t),sqrN:f=>f*f,addN:(f,u)=>f+u,subN:(f,u)=>f-u,mulN:(f,u)=>f*u,inv:f=>Ve(f,t),sqrt:s||(f=>(p||(p=Cn(t)),p(x,f))),toBytes:f=>r?fe(f,l):mt(f,l),fromBytes:(f,u=!0)=>{if(c){if(!c.includes(f.length)||f.length>l)throw new Error("Field.fromBytes: expected "+c+" bytes, got "+f.length);let y=new Uint8Array(l);y.set(f,r?0:y.length-f.length),f=y}if(f.length!==l)throw new Error("Field.fromBytes: expected "+l+" bytes, got "+f.length);let g=r?ce(f):J(f);if(i&&(g=$(g,t)),!u&&!x.isValid(g))throw new Error("invalid field element: outside of range 0..ORDER");return g},invertBatch:f=>Yt(x,f),cmov:(f,u,g)=>g?u:f});return Object.freeze(x)}function Ye(t){if(typeof t!="bigint")throw new Error("field order must be bigint");let e=t.toString(2).length;return Math.ceil(e/8)}function le(t){let e=Ye(t);return e+Math.ceil(e/2)}function Wt(t,e,r=!1){let n=t.length,o=Ye(e),s=le(e);if(n<16||n<s||n>1024)throw new Error("expected "+s+"-1024 bytes of input, got "+n);let i=r?ce(t):J(t),c=$(i,e-Z)+Z;return r?fe(c,o):mt(c,o)}var Et=BigInt(0),bt=BigInt(1);function Tt(t,e){let r=e.negate();return t?r:e}function Qt(t,e){let r=Yt(t.Fp,e.map(n=>n.Z));return e.map((n,o)=>t.fromAffine(n.toAffine(r[o])))}function Qe(t,e){if(!Number.isSafeInteger(t)||t<=0||t>e)throw new Error("invalid window size, expected [1.."+e+"], got W="+t)}function he(t,e){Qe(t,e);let r=Math.ceil(e/t)+1,n=2**(t-1),o=2**t,s=st(t),i=BigInt(t);return{windows:r,windowSize:n,mask:s,maxNumber:o,shiftBy:i}}function ze(t,e,r){let{windowSize:n,mask:o,maxNumber:s,shiftBy:i}=r,c=Number(t&o),a=t>>i;c>n&&(c-=s,a+=bt);let l=e*n,p=l+Math.abs(c)-1,x=c===0,f=c<0,u=e%2!==0;return{nextN:a,offset:p,isZero:x,isNeg:f,isNegF:u,offsetF:l}}function Vn(t,e){if(!Array.isArray(t))throw new Error("array expected");t.forEach((r,n)=>{if(!(r instanceof e))throw new Error("invalid point at index "+n)})}function Dn(t,e){if(!Array.isArray(t))throw new Error("array of scalars expected");t.forEach((r,n)=>{if(!e.isValid(r))throw new Error("invalid scalar at index "+n)})}var be=new WeakMap,Je=new WeakMap;function xe(t){return Je.get(t)||1}function We(t){if(t!==Et)throw new Error("invalid wNAF")}var Xt=class{constructor(e,r){this.BASE=e.BASE,this.ZERO=e.ZERO,this.Fn=e.Fn,this.bits=r}_unsafeLadder(e,r,n=this.ZERO){let o=e;for(;r>Et;)r&bt&&(n=n.add(o)),o=o.double(),r>>=bt;return n}precomputeWindow(e,r){let{windows:n,windowSize:o}=he(r,this.bits),s=[],i=e,c=i;for(let a=0;a<n;a++){c=i,s.push(c);for(let l=1;l<o;l++)c=c.add(i),s.push(c);i=c.double()}return s}wNAF(e,r,n){if(!this.Fn.isValid(n))throw new Error("invalid scalar");let o=this.ZERO,s=this.BASE,i=he(e,this.bits);for(let c=0;c<i.windows;c++){let{nextN:a,offset:l,isZero:p,isNeg:x,isNegF:f,offsetF:u}=ze(n,c,i);n=a,p?s=s.add(Tt(f,r[u])):o=o.add(Tt(x,r[l]))}return We(n),{p:o,f:s}}wNAFUnsafe(e,r,n,o=this.ZERO){let s=he(e,this.bits);for(let i=0;i<s.windows&&n!==Et;i++){let{nextN:c,offset:a,isZero:l,isNeg:p}=ze(n,i,s);if(n=c,!l){let x=r[a];o=o.add(p?x.negate():x)}}return We(n),o}getPrecomputes(e,r,n){let o=be.get(r);return o||(o=this.precomputeWindow(r,e),e!==1&&(typeof n=="function"&&(o=n(o)),be.set(r,o))),o}cached(e,r,n){let o=xe(e);return this.wNAF(o,this.getPrecomputes(o,e,n),r)}unsafe(e,r,n,o){let s=xe(e);return s===1?this._unsafeLadder(e,r,o):this.wNAFUnsafe(s,this.getPrecomputes(s,e,n),r,o)}createCache(e,r){Qe(r,this.bits),Je.set(e,r),be.delete(e)}hasCache(e){return xe(e)!==1}};function Fe(t,e,r,n){let o=e,s=t.ZERO,i=t.ZERO;for(;r>Et||n>Et;)r&bt&&(s=s.add(o)),n&bt&&(i=i.add(o)),o=o.double(),r>>=bt,n>>=bt;return{p1:s,p2:i}}function tn(t,e,r,n){Vn(r,t),Dn(n,e);let o=r.length,s=n.length;if(o!==s)throw new Error("arrays of points and scalars must have equal length");let i=t.ZERO,c=Pt(BigInt(o)),a=1;c>12?a=c-3:c>4?a=c-2:c>0&&(a=2);let l=st(a),p=new Array(Number(l)+1).fill(i),x=Math.floor((e.BITS-1)/a)*a,f=i;for(let u=x;u>=0;u-=a){p.fill(i);for(let y=0;y<s;y++){let H=n[y],O=Number(H>>BigInt(u)&l);p[O]=p[O].add(r[y])}let g=i;for(let y=p.length-1,H=i;y>0;y--)H=H.add(p[y]),g=g.add(H);if(f=f.add(g),u!==0)for(let y=0;y<a;y++)f=f.double()}return f}function Xe(t,e,r){if(e){if(e.ORDER!==t)throw new Error("Field.ORDER must match order: Fp == p, Fn == n");return de(e),e}else return it(t,{isLE:r})}function en(t,e,r={},n){if(n===void 0&&(n=t==="edwards"),!e||typeof e!="object")throw new Error(`expected valid ${t} CURVE object`);for(let a of["p","n","h"]){let l=e[a];if(!(typeof l=="bigint"&&l>Et))throw new Error(`CURVE.${a} must be positive bigint`)}let o=Xe(e.p,r.Fp,n),s=Xe(e.n,r.Fn,n),c=["Gx","Gy","a",t==="weierstrass"?"b":"d"];for(let a of c)if(!o.isValid(e[a]))throw new Error(`CURVE.${a} must be valid field element of CURVE.Fp`);return e=Object.freeze(Object.assign({},e)),{CURVE:e,Fp:o,Fn:s}}var nn=(t,e)=>(t+(t>=0?e:-e)/rn)/e;function Zn(t,e,r){let[[n,o],[s,i]]=e,c=nn(i*t,r),a=nn(-o*t,r),l=t-c*n-a*s,p=-c*o-a*i,x=l<tt,f=p<tt;x&&(l=-l),f&&(p=-p);let u=st(Math.ceil(Pt(r)/2))+Bt;if(l<tt||l>=u||p<tt||p>=u)throw new Error("splitScalar (endomorphism): failed, k="+t);return{k1neg:x,k1:l,k2neg:f,k2:p}}function we(t){if(!["compact","recovered","der"].includes(t))throw new Error('Signature format must be "compact", "recovered", or "der"');return t}function pe(t,e){let r={};for(let n of Object.keys(e))r[n]=t[n]===void 0?e[n]:t[n];return Ht(r.lowS,"lowS"),Ht(r.prehash,"prehash"),r.format!==void 0&&we(r.format),r}var ge=class extends Error{constructor(e=""){super(e)}},F={Err:ge,_tlv:{encode:(t,e)=>{let{Err:r}=F;if(t<0||t>256)throw new r("tlv.encode: wrong tag");if(e.length&1)throw new r("tlv.encode: unpadded data");let n=e.length/2,o=_t(n);if(o.length/2&128)throw new r("tlv.encode: long form length too big");let s=n>127?_t(o.length/2|128):"";return _t(t)+s+o+e},decode(t,e){let{Err:r}=F,n=0;if(t<0||t>256)throw new r("tlv.encode: wrong tag");if(e.length<2||e[n++]!==t)throw new r("tlv.decode: wrong tlv");let o=e[n++],s=!!(o&128),i=0;if(!s)i=o;else{let a=o&127;if(!a)throw new r("tlv.decode(long): indefinite length not supported");if(a>4)throw new r("tlv.decode(long): byte length is too big");let l=e.subarray(n,n+a);if(l.length!==a)throw new r("tlv.decode: length bytes not complete");if(l[0]===0)throw new r("tlv.decode(long): zero leftmost byte");for(let p of l)i=i<<8|p;if(n+=a,i<128)throw new r("tlv.decode(long): not minimal encoding")}let c=e.subarray(n,n+i);if(c.length!==i)throw new r("tlv.decode: wrong value length");return{v:c,l:e.subarray(n+i)}}},_int:{encode(t){let{Err:e}=F;if(t<tt)throw new e("integer: negative integers are not allowed");let r=_t(t);if(Number.parseInt(r[0],16)&8&&(r="00"+r),r.length&1)throw new e("unexpected DER parsing assertion: unpadded hex");return r},decode(t){let{Err:e}=F;if(t[0]&128)throw new e("invalid signature integer: negative");if(t[0]===0&&!(t[1]&128))throw new e("invalid signature integer: unnecessary leading zero");return J(t)}},toSig(t){let{Err:e,_int:r,_tlv:n}=F,o=C("signature",t),{v:s,l:i}=n.decode(48,o);if(i.length)throw new e("invalid signature: left bytes after parsing");let{v:c,l:a}=n.decode(2,s),{v:l,l:p}=n.decode(2,a);if(p.length)throw new e("invalid signature: left bytes after parsing");return{r:r.decode(c),s:r.decode(l)}},hexFromSig(t){let{_tlv:e,_int:r}=F,n=e.encode(2,r.encode(t.r)),o=e.encode(2,r.encode(t.s)),s=n+o;return e.encode(48,s)}},tt=BigInt(0),Bt=BigInt(1),rn=BigInt(2),Jt=BigInt(3),Kn=BigInt(4);function ct(t,e){let{BYTES:r}=t,n;if(typeof e=="bigint")n=e;else{let o=C("private key",e);try{n=t.fromBytes(o)}catch{throw new Error(`invalid private key: expected ui8a of size ${r}, got ${typeof e}`)}}if(!t.isValidNot0(n))throw new Error("invalid private key: out of range [1..N-1]");return n}function Mn(t,e={}){let r=en("weierstrass",t,e),{Fp:n,Fn:o}=r,s=r.CURVE,{h:i,n:c}=s;Ot(e,{},{allowInfinityPoint:"boolean",clearCofactor:"function",isTorsionFree:"function",fromBytes:"function",toBytes:"function",endo:"object",wrapPrivateKey:"boolean"});let{endo:a}=e;if(a&&(!n.is0(s.a)||typeof a.beta!="bigint"||!Array.isArray(a.basises)))throw new Error('invalid endo: expected "beta": bigint and "basises": array');let l=sn(n,o);function p(){if(!n.isOdd)throw new Error("compression is not supported: Field does not have .isOdd()")}function x(U,b,h){let{x:d,y:w}=b.toAffine(),m=n.toBytes(d);if(Ht(h,"isCompressed"),h){p();let v=!n.isOdd(w);return j(on(v),m)}else return j(Uint8Array.of(4),m,n.toBytes(w))}function f(U){ot(U,void 0,"Point");let{publicKey:b,publicKeyUncompressed:h}=l,d=U.length,w=U[0],m=U.subarray(1);if(d===b&&(w===2||w===3)){let v=n.fromBytes(m);if(!n.isValid(v))throw new Error("bad point: is not on curve, wrong x");let B=y(v),E;try{E=n.sqrt(B)}catch(q){let T=q instanceof Error?": "+q.message:"";throw new Error("bad point: is not on curve, sqrt error"+T)}p();let A=n.isOdd(E);return(w&1)===1!==A&&(E=n.neg(E)),{x:v,y:E}}else if(d===h&&w===4){let v=n.BYTES,B=n.fromBytes(m.subarray(0,v)),E=n.fromBytes(m.subarray(v,v*2));if(!H(B,E))throw new Error("bad point: is not on curve");return{x:B,y:E}}else throw new Error(`bad point: got length ${d}, expected compressed=${b} or uncompressed=${h}`)}let u=e.toBytes||x,g=e.fromBytes||f;function y(U){let b=n.sqr(U),h=n.mul(b,U);return n.add(n.add(h,n.mul(U,s.a)),s.b)}function H(U,b){let h=n.sqr(b),d=y(U);return n.eql(h,d)}if(!H(s.Gx,s.Gy))throw new Error("bad curve params: generator point");let O=n.mul(n.pow(s.a,Jt),Kn),et=n.mul(n.sqr(s.b),BigInt(27));if(n.is0(n.add(O,et)))throw new Error("bad curve params: a or b");function L(U,b,h=!1){if(!n.isValid(b)||h&&n.is0(b))throw new Error(`bad point coordinate ${U}`);return b}function ft(U){if(!(U instanceof I))throw new Error("ProjectivePoint expected")}function nt(U){if(!a||!a.basises)throw new Error("no endo");return Zn(U,a.basises,o.ORDER)}let xt=ae((U,b)=>{let{X:h,Y:d,Z:w}=U;if(n.eql(w,n.ONE))return{x:h,y:d};let m=U.is0();b==null&&(b=m?n.ONE:n.inv(w));let v=n.mul(h,b),B=n.mul(d,b),E=n.mul(w,b);if(m)return{x:n.ZERO,y:n.ZERO};if(!n.eql(E,n.ONE))throw new Error("invZ was invalid");return{x:v,y:B}}),kt=ae(U=>{if(U.is0()){if(e.allowInfinityPoint&&!n.is0(U.Y))return;throw new Error("bad point: ZERO")}let{x:b,y:h}=U.toAffine();if(!n.isValid(b)||!n.isValid(h))throw new Error("bad point: x or y not field elements");if(!H(b,h))throw new Error("bad point: equation left != right");if(!U.isTorsionFree())throw new Error("bad point: not in prime-order subgroup");return!0});function pt(U,b,h,d,w){return h=new I(n.mul(h.X,U),h.Y,h.Z),b=Tt(d,b),h=Tt(w,h),b.add(h)}class I{constructor(b,h,d){this.X=L("x",b),this.Y=L("y",h,!0),this.Z=L("z",d),Object.freeze(this)}static CURVE(){return s}static fromAffine(b){let{x:h,y:d}=b||{};if(!b||!n.isValid(h)||!n.isValid(d))throw new Error("invalid affine point");if(b instanceof I)throw new Error("projective point not allowed");return n.is0(h)&&n.is0(d)?I.ZERO:new I(h,d,n.ONE)}static fromBytes(b){let h=I.fromAffine(g(ot(b,void 0,"point")));return h.assertValidity(),h}static fromHex(b){return I.fromBytes(C("pointHex",b))}get x(){return this.toAffine().x}get y(){return this.toAffine().y}precompute(b=8,h=!0){return at.createCache(this,b),h||this.multiply(Jt),this}assertValidity(){kt(this)}hasEvenY(){let{y:b}=this.toAffine();if(!n.isOdd)throw new Error("Field doesn't support isOdd");return!n.isOdd(b)}equals(b){ft(b);let{X:h,Y:d,Z:w}=this,{X:m,Y:v,Z:B}=b,E=n.eql(n.mul(h,B),n.mul(m,w)),A=n.eql(n.mul(d,B),n.mul(v,w));return E&&A}negate(){return new I(this.X,n.neg(this.Y),this.Z)}double(){let{a:b,b:h}=s,d=n.mul(h,Jt),{X:w,Y:m,Z:v}=this,B=n.ZERO,E=n.ZERO,A=n.ZERO,S=n.mul(w,w),q=n.mul(m,m),T=n.mul(v,v),_=n.mul(w,m);return _=n.add(_,_),A=n.mul(w,v),A=n.add(A,A),B=n.mul(b,A),E=n.mul(d,T),E=n.add(B,E),B=n.sub(q,E),E=n.add(q,E),E=n.mul(B,E),B=n.mul(_,B),A=n.mul(d,A),T=n.mul(b,T),_=n.sub(S,T),_=n.mul(b,_),_=n.add(_,A),A=n.add(S,S),S=n.add(A,S),S=n.add(S,T),S=n.mul(S,_),E=n.add(E,S),T=n.mul(m,v),T=n.add(T,T),S=n.mul(T,_),B=n.sub(B,S),A=n.mul(T,q),A=n.add(A,A),A=n.add(A,A),new I(B,E,A)}add(b){ft(b);let{X:h,Y:d,Z:w}=this,{X:m,Y:v,Z:B}=b,E=n.ZERO,A=n.ZERO,S=n.ZERO,q=s.a,T=n.mul(s.b,Jt),_=n.mul(h,m),R=n.mul(d,v),k=n.mul(w,B),M=n.add(h,d),N=n.add(m,v);M=n.mul(M,N),N=n.add(_,R),M=n.sub(M,N),N=n.add(h,w);let V=n.add(m,B);return N=n.mul(N,V),V=n.add(_,k),N=n.sub(N,V),V=n.add(d,w),E=n.add(v,B),V=n.mul(V,E),E=n.add(R,k),V=n.sub(V,E),S=n.mul(q,N),E=n.mul(T,k),S=n.add(E,S),E=n.sub(R,S),S=n.add(R,S),A=n.mul(E,S),R=n.add(_,_),R=n.add(R,_),k=n.mul(q,k),N=n.mul(T,N),R=n.add(R,k),k=n.sub(_,k),k=n.mul(q,k),N=n.add(N,k),_=n.mul(R,N),A=n.add(A,_),_=n.mul(V,N),E=n.mul(M,E),E=n.sub(E,_),_=n.mul(M,R),S=n.mul(V,S),S=n.add(S,_),new I(E,A,S)}subtract(b){return this.add(b.negate())}is0(){return this.equals(I.ZERO)}multiply(b){let{endo:h}=e;if(!o.isValidNot0(b))throw new Error("invalid scalar: out of range");let d,w,m=v=>at.cached(this,v,B=>Qt(I,B));if(h){let{k1neg:v,k1:B,k2neg:E,k2:A}=nt(b),{p:S,f:q}=m(B),{p:T,f:_}=m(A);w=q.add(_),d=pt(h.beta,S,T,v,E)}else{let{p:v,f:B}=m(b);d=v,w=B}return Qt(I,[d,w])[0]}multiplyUnsafe(b){let{endo:h}=e,d=this;if(!o.isValid(b))throw new Error("invalid scalar: out of range");if(b===tt||d.is0())return I.ZERO;if(b===Bt)return d;if(at.hasCache(this))return this.multiply(b);if(h){let{k1neg:w,k1:m,k2neg:v,k2:B}=nt(b),{p1:E,p2:A}=Fe(I,d,m,B);return pt(h.beta,E,A,w,v)}else return at.unsafe(d,b)}multiplyAndAddUnsafe(b,h,d){let w=this.multiplyUnsafe(h).add(b.multiplyUnsafe(d));return w.is0()?void 0:w}toAffine(b){return xt(this,b)}isTorsionFree(){let{isTorsionFree:b}=e;return i===Bt?!0:b?b(I,this):at.unsafe(this,c).is0()}clearCofactor(){let{clearCofactor:b}=e;return i===Bt?this:b?b(I,this):this.multiplyUnsafe(i)}isSmallOrder(){return this.multiplyUnsafe(i).is0()}toBytes(b=!0){return Ht(b,"isCompressed"),this.assertValidity(),u(I,this,b)}toHex(b=!0){return D(this.toBytes(b))}toString(){return`<Point ${this.is0()?"ZERO":this.toHex()}>`}get px(){return this.X}get py(){return this.X}get pz(){return this.Z}toRawBytes(b=!0){return this.toBytes(b)}_setWindowSize(b){this.precompute(b)}static normalizeZ(b){return Qt(I,b)}static msm(b,h){return tn(I,o,b,h)}static fromPrivateKey(b){return I.BASE.multiply(ct(o,b))}}I.BASE=new I(s.Gx,s.Gy,n.ONE),I.ZERO=new I(n.ZERO,n.ONE,n.ZERO),I.Fp=n,I.Fn=o;let Vt=o.BITS,at=new Xt(I,e.endo?Math.ceil(Vt/2):Vt);return I.BASE.precompute(8),I}function on(t){return Uint8Array.of(t?2:3)}function sn(t,e){return{secretKey:e.BYTES,publicKey:1+t.BYTES,publicKeyUncompressed:1+2*t.BYTES,publicKeyHasPrefix:!0,signature:2*e.BYTES}}function jn(t,e={}){let{Fn:r}=t,n=e.randomBytes||X,o=Object.assign(sn(t.Fp,r),{seed:le(r.ORDER)});function s(u){try{return!!ct(r,u)}catch{return!1}}function i(u,g){let{publicKey:y,publicKeyUncompressed:H}=o;try{let O=u.length;return g===!0&&O!==y||g===!1&&O!==H?!1:!!t.fromBytes(u)}catch{return!1}}function c(u=n(o.seed)){return Wt(ot(u,o.seed,"seed"),r.ORDER)}function a(u,g=!0){return t.BASE.multiply(ct(r,u)).toBytes(g)}function l(u){let g=c(u);return{secretKey:g,publicKey:a(g)}}function p(u){if(typeof u=="bigint")return!1;if(u instanceof t)return!0;let{secretKey:g,publicKey:y,publicKeyUncompressed:H}=o;if(r.allowedLengths||g===y)return;let O=C("key",u).length;return O===y||O===H}function x(u,g,y=!0){if(p(u)===!0)throw new Error("first arg must be private key");if(p(g)===!1)throw new Error("second arg must be public key");let H=ct(r,u);return t.fromHex(g).multiply(H).toBytes(y)}return Object.freeze({getPublicKey:a,getSharedSecret:x,keygen:l,Point:t,utils:{isValidSecretKey:s,isValidPublicKey:i,randomSecretKey:c,isValidPrivateKey:s,randomPrivateKey:c,normPrivateKeyToScalar:u=>ct(r,u),precompute(u=8,g=t.BASE){return g.precompute(u,!1)}},lengths:o})}function $n(t,e,r={}){Zt(e),Ot(r,{},{hmac:"function",lowS:"boolean",randomBytes:"function",bits2int:"function",bits2int_modN:"function"});let n=r.randomBytes||X,o=r.hmac||((h,...d)=>re(e,h,j(...d))),{Fp:s,Fn:i}=t,{ORDER:c,BITS:a}=i,{keygen:l,getPublicKey:p,getSharedSecret:x,utils:f,lengths:u}=jn(t,r),g={prehash:!1,lowS:typeof r.lowS=="boolean"?r.lowS:!1,format:void 0,extraEntropy:!1},y="compact";function H(h){let d=c>>Bt;return h>d}function O(h,d){if(!i.isValidNot0(d))throw new Error(`invalid signature ${h}: out of range 1..Point.Fn.ORDER`);return d}function et(h,d){we(d);let w=u.signature,m=d==="compact"?w:d==="recovered"?w+1:void 0;return ot(h,m,`${d} signature`)}class L{constructor(d,w,m){this.r=O("r",d),this.s=O("s",w),m!=null&&(this.recovery=m),Object.freeze(this)}static fromBytes(d,w=y){et(d,w);let m;if(w==="der"){let{r:A,s:S}=F.toSig(ot(d));return new L(A,S)}w==="recovered"&&(m=d[0],w="compact",d=d.subarray(1));let v=i.BYTES,B=d.subarray(0,v),E=d.subarray(v,v*2);return new L(i.fromBytes(B),i.fromBytes(E),m)}static fromHex(d,w){return this.fromBytes(P(d),w)}addRecoveryBit(d){return new L(this.r,this.s,d)}recoverPublicKey(d){let w=s.ORDER,{r:m,s:v,recovery:B}=this;if(B==null||![0,1,2,3].includes(B))throw new Error("recovery id invalid");if(c*rn<w&&B>1)throw new Error("recovery id is ambiguous for h>1 curve");let A=B===2||B===3?m+c:m;if(!s.isValid(A))throw new Error("recovery id 2 or 3 invalid");let S=s.toBytes(A),q=t.fromBytes(j(on((B&1)===0),S)),T=i.inv(A),_=nt(C("msgHash",d)),R=i.create(-_*T),k=i.create(v*T),M=t.BASE.multiplyUnsafe(R).add(q.multiplyUnsafe(k));if(M.is0())throw new Error("point at infinify");return M.assertValidity(),M}hasHighS(){return H(this.s)}toBytes(d=y){if(we(d),d==="der")return P(F.hexFromSig(this));let w=i.toBytes(this.r),m=i.toBytes(this.s);if(d==="recovered"){if(this.recovery==null)throw new Error("recovery bit must be present");return j(Uint8Array.of(this.recovery),w,m)}return j(w,m)}toHex(d){return D(this.toBytes(d))}assertValidity(){}static fromCompact(d){return L.fromBytes(C("sig",d),"compact")}static fromDER(d){return L.fromBytes(C("sig",d),"der")}normalizeS(){return this.hasHighS()?new L(this.r,i.neg(this.s),this.recovery):this}toDERRawBytes(){return this.toBytes("der")}toDERHex(){return D(this.toBytes("der"))}toCompactRawBytes(){return this.toBytes("compact")}toCompactHex(){return D(this.toBytes("compact"))}}let ft=r.bits2int||function(d){if(d.length>8192)throw new Error("input is too large");let w=J(d),m=d.length*8-a;return m>0?w>>BigInt(m):w},nt=r.bits2int_modN||function(d){return i.create(ft(d))},xt=st(a);function kt(h){return qe("num < 2^"+a,h,tt,xt),i.toBytes(h)}function pt(h,d){return ot(h,void 0,"message"),d?ot(e(h),void 0,"prehashed message"):h}function I(h,d,w){if(["recovered","canonical"].some(R=>R in w))throw new Error("sign() legacy options not supported");let{lowS:m,prehash:v,extraEntropy:B}=pe(w,g);h=pt(h,v);let E=nt(h),A=ct(i,d),S=[kt(A),kt(E)];if(B!=null&&B!==!1){let R=B===!0?n(u.secretKey):B;S.push(C("extraEntropy",R))}let q=j(...S),T=E;function _(R){let k=ft(R);if(!i.isValidNot0(k))return;let M=i.inv(k),N=t.BASE.multiply(k).toAffine(),V=i.create(N.x);if(V===tt)return;let Dt=i.create(M*i.create(T+V*A));if(Dt===tt)return;let He=(N.x===V?0:2)|Number(N.y&Bt),_e=Dt;return m&&H(Dt)&&(_e=i.neg(Dt),He^=1),new L(V,_e,He)}return{seed:q,k2sig:_}}function Vt(h,d,w={}){h=C("message",h);let{seed:m,k2sig:v}=I(h,d,w);return ke(e.outputLen,i.BYTES,o)(m,v)}function at(h){let d,w=typeof h=="string"||dt(h),m=!w&&h!==null&&typeof h=="object"&&typeof h.r=="bigint"&&typeof h.s=="bigint";if(!w&&!m)throw new Error("invalid signature, expected Uint8Array, hex string or Signature instance");if(m)d=new L(h.r,h.s);else if(w){try{d=L.fromBytes(C("sig",h),"der")}catch(v){if(!(v instanceof F.Err))throw v}if(!d)try{d=L.fromBytes(C("sig",h),"compact")}catch{return!1}}return d||!1}function U(h,d,w,m={}){let{lowS:v,prehash:B,format:E}=pe(m,g);if(w=C("publicKey",w),d=pt(C("message",d),B),"strict"in m)throw new Error("options.strict was renamed to lowS");let A=E===void 0?at(h):L.fromBytes(C("sig",h),E);if(A===!1)return!1;try{let S=t.fromBytes(w);if(v&&A.hasHighS())return!1;let{r:q,s:T}=A,_=nt(d),R=i.inv(T),k=i.create(_*R),M=i.create(q*R),N=t.BASE.multiplyUnsafe(k).add(S.multiplyUnsafe(M));return N.is0()?!1:i.create(N.x)===q}catch{return!1}}function b(h,d,w={}){let{prehash:m}=pe(w,g);return d=pt(d,m),L.fromBytes(h,"recovered").recoverPublicKey(d).toBytes()}return Object.freeze({keygen:l,getPublicKey:p,getSharedSecret:x,utils:f,lengths:u,Point:t,sign:Vt,verify:U,recoverPublicKey:b,Signature:L,hash:e})}function Gn(t){let e={a:t.a,b:t.b,p:t.Fp.ORDER,n:t.n,h:t.h,Gx:t.Gx,Gy:t.Gy},r=t.Fp,n=t.allowedPrivateKeyLengths?Array.from(new Set(t.allowedPrivateKeyLengths.map(i=>Math.ceil(i/2)))):void 0,o=it(e.n,{BITS:t.nBitLength,allowedLengths:n,modFromBytes:t.wrapPrivateKey}),s={Fp:r,Fn:o,allowInfinityPoint:t.allowInfinityPoint,endo:t.endo,isTorsionFree:t.isTorsionFree,clearCofactor:t.clearCofactor,fromBytes:t.fromBytes,toBytes:t.toBytes};return{CURVE:e,curveOpts:s}}function Pn(t){let{CURVE:e,curveOpts:r}=Gn(t),n={hmac:t.hmac,randomBytes:t.randomBytes,lowS:t.lowS,bits2int:t.bits2int,bits2int_modN:t.bits2int_modN};return{CURVE:e,curveOpts:r,hash:t.hash,ecdsaOpts:n}}function Yn(t,e){let r=e.Point;return Object.assign({},e,{ProjectivePoint:r,CURVE:Object.assign({},t,zt(r.Fn.ORDER,r.Fn.BITS))})}function cn(t){let{CURVE:e,curveOpts:r,hash:n,ecdsaOpts:o}=Pn(t),s=Mn(e,r),i=$n(s,n,o);return Yn(t,i)}function fn(t,e){let r=n=>cn({...t,hash:n});return{...r(e),create:r}}var vt={p:BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),n:BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"),h:BigInt(1),a:BigInt(0),b:BigInt(7),Gx:BigInt("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"),Gy:BigInt("0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")},zn={beta:BigInt("0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee"),basises:[[BigInt("0x3086d221a7d46bcde86c90e49284eb15"),-BigInt("0xe4437ed6010e88286f547fa90abfe4c3")],[BigInt("0x114ca50f7a8e2f3f657c1108d9d44cfd8"),BigInt("0x3086d221a7d46bcde86c90e49284eb15")]]},Wn=BigInt(0),an=BigInt(1),ye=BigInt(2);function Xn(t){let e=vt.p,r=BigInt(3),n=BigInt(6),o=BigInt(11),s=BigInt(22),i=BigInt(23),c=BigInt(44),a=BigInt(88),l=t*t*t%e,p=l*l*t%e,x=G(p,r,e)*p%e,f=G(x,r,e)*p%e,u=G(f,ye,e)*l%e,g=G(u,o,e)*u%e,y=G(g,s,e)*g%e,H=G(y,c,e)*y%e,O=G(H,a,e)*H%e,et=G(O,c,e)*y%e,L=G(et,r,e)*p%e,ft=G(L,i,e)*g%e,nt=G(ft,n,e)*l%e,xt=G(nt,ye,e);if(!Ft.eql(Ft.sqr(xt),t))throw new Error("Cannot find square root");return xt}var Ft=it(vt.p,{sqrt:Xn}),ln=fn({...vt,Fp:Ft,lowS:!0,endo:zn},yt),un={};function te(t,...e){let r=un[t];if(r===void 0){let n=yt(Mt(t));r=j(n,n),un[t]=r}return yt(j(r,...e))}var Ee=t=>t.toBytes(!0).slice(1),At=ln.Point,Be=t=>t%ye===Wn;function me(t){let{Fn:e,BASE:r}=At,n=ct(e,t),o=r.multiply(n);return{scalar:Be(o.y)?n:e.neg(n),bytes:Ee(o)}}function hn(t){let e=Ft;if(!e.isValidNot0(t))throw new Error("invalid x: Fail if x \u2265 p");let r=e.create(t*t),n=e.create(r*t+BigInt(7)),o=e.sqrt(n);Be(o)||(o=e.neg(o));let s=At.fromAffine({x:t,y:o});return s.assertValidity(),s}var Lt=J;function bn(...t){return At.Fn.create(Lt(te("BIP0340/challenge",...t)))}function dn(t){return me(t).bytes}function Qn(t,e,r=X(32)){let{Fn:n}=At,o=C("message",t),{bytes:s,scalar:i}=me(e),c=C("auxRand",r,32),a=n.toBytes(i^Lt(te("BIP0340/aux",c))),l=te("BIP0340/nonce",a,s,o),{bytes:p,scalar:x}=me(l),f=bn(p,s,o),u=new Uint8Array(64);if(u.set(p,0),u.set(n.toBytes(n.create(x+f*i)),32),!xn(u,o,s))throw new Error("sign: Invalid signature produced");return u}function xn(t,e,r){let{Fn:n,BASE:o}=At,s=C("signature",t,64),i=C("message",e),c=C("publicKey",r,32);try{let a=hn(Lt(c)),l=Lt(s.subarray(0,32));if(!Ut(l,an,vt.p))return!1;let p=Lt(s.subarray(32,64));if(!Ut(p,an,vt.n))return!1;let x=bn(n.toBytes(l),Ee(a),i),f=o.multiplyUnsafe(p).add(a.multiplyUnsafe(n.neg(x))),{x:u,y:g}=f.toAffine();return!(f.is0()||!Be(g)||u!==l)}catch{return!1}}var Rt=(()=>{let r=(o=X(48))=>Wt(o,vt.n);ln.utils.randomSecretKey;function n(o){let s=r(o);return{secretKey:s,publicKey:dn(s)}}return{keygen:n,getPublicKey:dn,sign:Qn,verify:xn,Point:At,utils:{randomSecretKey:r,randomPrivateKey:r,taggedHash:te,lift_x:hn,pointToBytes:Ee,numberToBytesBE:mt,bytesToNumberBE:J,mod:$},lengths:{secretKey:32,publicKey:32,publicKeyHasPrefix:!1,signature:64,seed:48}}})();var pn=yt;function mn(t){return t instanceof Uint8Array||ArrayBuffer.isView(t)&&t.constructor.name==="Uint8Array"}function En(t,e){return Array.isArray(e)?e.length===0?!0:t?e.every(r=>typeof r=="string"):e.every(r=>Number.isSafeInteger(r)):!1}function Jn(t){if(typeof t!="function")throw new Error("function expected");return!0}function Ct(t,e){if(typeof e!="string")throw new Error(`${t}: string expected`);return!0}function Bn(t){if(!Number.isSafeInteger(t))throw new Error(`invalid integer: ${t}`)}function ve(t){if(!Array.isArray(t))throw new Error("array expected")}function vn(t,e){if(!En(!0,e))throw new Error(`${t}: array of strings expected`)}function An(t,e){if(!En(!1,e))throw new Error(`${t}: array of numbers expected`)}function Fn(...t){let e=s=>s,r=(s,i)=>c=>s(i(c)),n=t.map(s=>s.encode).reduceRight(r,e),o=t.map(s=>s.decode).reduce(r,e);return{encode:n,decode:o}}function tr(t){let e=typeof t=="string"?t.split(""):t,r=e.length;vn("alphabet",e);let n=new Map(e.map((o,s)=>[o,s]));return{encode:o=>(ve(o),o.map(s=>{if(!Number.isSafeInteger(s)||s<0||s>=r)throw new Error(`alphabet.encode: digit index outside alphabet "${s}". Allowed: ${t}`);return e[s]})),decode:o=>(ve(o),o.map(s=>{Ct("alphabet.decode",s);let i=n.get(s);if(i===void 0)throw new Error(`Unknown letter: "${s}". Allowed: ${t}`);return i}))}}function er(t=""){return Ct("join",t),{encode:e=>(vn("join.decode",e),e.join(t)),decode:e=>(Ct("join.decode",e),e.split(t))}}var Sn=(t,e)=>e===0?t:Sn(e,t%e),ne=(t,e)=>t+(e-Sn(t,e)),ee=(()=>{let t=[];for(let e=0;e<40;e++)t.push(2**e);return t})();function Ae(t,e,r,n){if(ve(t),e<=0||e>32)throw new Error(`convertRadix2: wrong from=${e}`);if(r<=0||r>32)throw new Error(`convertRadix2: wrong to=${r}`);if(ne(e,r)>32)throw new Error(`convertRadix2: carry overflow from=${e} to=${r} carryBits=${ne(e,r)}`);let o=0,s=0,i=ee[e],c=ee[r]-1,a=[];for(let l of t){if(Bn(l),l>=i)throw new Error(`convertRadix2: invalid data word=${l} from=${e}`);if(o=o<<e|l,s+e>32)throw new Error(`convertRadix2: carry overflow pos=${s} from=${e}`);for(s+=e;s>=r;s-=r)a.push((o>>s-r&c)>>>0);let p=ee[s];if(p===void 0)throw new Error("invalid carry");o&=p-1}if(o=o<<r-s&c,!n&&s>=e)throw new Error("Excess padding");if(!n&&o>0)throw new Error(`Non-zero padding: ${o}`);return n&&s>0&&a.push(o>>>0),a}function nr(t,e=!1){if(Bn(t),t<=0||t>32)throw new Error("radix2: bits should be in (0..32]");if(ne(8,t)>32||ne(t,8)>32)throw new Error("radix2: carry overflow");return{encode:r=>{if(!mn(r))throw new Error("radix2.encode input should be Uint8Array");return Ae(Array.from(r),8,t,!e)},decode:r=>(An("radix2.decode",r),Uint8Array.from(Ae(r,t,8,e)))}}function wn(t){return Jn(t),function(...e){try{return t.apply(null,e)}catch{}}}var Se=Fn(tr("qpzry9x8gf2tvdw0s3jn54khce6mua7l"),er("")),gn=[996825010,642813549,513874426,1027748829,705979059];function Nt(t){let e=t>>25,r=(t&33554431)<<5;for(let n=0;n<gn.length;n++)(e>>n&1)===1&&(r^=gn[n]);return r}function yn(t,e,r=1){let n=t.length,o=1;for(let s=0;s<n;s++){let i=t.charCodeAt(s);if(i<33||i>126)throw new Error(`Invalid prefix (${t})`);o=Nt(o)^i>>5}o=Nt(o);for(let s=0;s<n;s++)o=Nt(o)^t.charCodeAt(s)&31;for(let s of e)o=Nt(o)^s;for(let s=0;s<6;s++)o=Nt(o);return o^=r,Se.encode(Ae([o%ee[30]],30,5,!1))}function rr(t){let e=t==="bech32"?1:734539939,r=nr(5),n=r.decode,o=r.encode,s=wn(n);function i(x,f,u=90){Ct("bech32.encode prefix",x),mn(f)&&(f=Array.from(f)),An("bech32.encode",f);let g=x.length;if(g===0)throw new TypeError(`Invalid prefix length ${g}`);let y=g+7+f.length;if(u!==!1&&y>u)throw new TypeError(`Length ${y} exceeds limit ${u}`);let H=x.toLowerCase(),O=yn(H,f,e);return`${H}1${Se.encode(f)}${O}`}function c(x,f=90){Ct("bech32.decode input",x);let u=x.length;if(u<8||f!==!1&&u>f)throw new TypeError(`invalid string length: ${u} (${x}). Expected (8..${f})`);let g=x.toLowerCase();if(x!==g&&x!==x.toUpperCase())throw new Error("String must be lowercase or uppercase");let y=g.lastIndexOf("1");if(y===0||y===-1)throw new Error('Letter "1" must be present between prefix and data only');let H=g.slice(0,y),O=g.slice(y+1);if(O.length<6)throw new Error("Data must be at least 6 characters long");let et=Se.decode(O).slice(0,-6),L=yn(H,et,e);if(!O.endsWith(L))throw new Error(`Invalid checksum in ${x}: expected "${L}"`);return{prefix:H,words:et}}let a=wn(c);function l(x){let{prefix:f,words:u}=c(x,!1);return{prefix:f,words:u,bytes:n(u)}}function p(x,f){return i(x,o(f))}return{encode:i,decode:c,encodeFromBytes:p,decodeToBytes:l,decodeUnsafe:a,fromWords:n,fromWordsUnsafe:s,toWords:o}}var qt=rr("bech32");var or=new TextEncoder;function sr(){return D(Rt.utils.randomPrivateKey())}function Hn(t){return D(Rt.getPublicKey(P(t)))}function In(t,e){return qt.encode(t,qt.toWords(P(e)),1500)}function ir(t){if(t=String(t||"").trim(),/^[0-9a-fA-F]{64}$/.test(t))return{type:"hex",hex:t.toLowerCase()};let e=qt.decode(t,1500);if(e.prefix!=="npub"&&e.prefix!=="nsec")throw new Error("prefix \u0E44\u0E21\u0E48\u0E23\u0E2D\u0E07\u0E23\u0E31\u0E1A: "+e.prefix);let r=qt.fromWords(e.words);if(r.length!==32)throw new Error("\u0E04\u0E27\u0E32\u0E21\u0E22\u0E32\u0E27\u0E04\u0E35\u0E22\u0E4C\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07");return{type:e.prefix,hex:D(Uint8Array.from(r))}}function Ie(t){let e=JSON.stringify([0,t.pubkey,t.created_at,t.kind,t.tags,t.content]);return D(pn(or.encode(e)))}function cr(t,e){let r={kind:t.kind,created_at:t.created_at,tags:t.tags,content:t.content,pubkey:Hn(e)};return r.id=Ie(r),r.sig=D(Rt.sign(P(r.id),P(e))),r}function fr(t){try{return!t||typeof t.pubkey!="string"||typeof t.sig!="string"||Ie(t)!==t.id?!1:Rt.verify(t.sig,t.id,t.pubkey)}catch{return!1}}window.NostrLite={genSecret:sr,pubFromSecret:Hn,eventId:Ie,signEvent:cr,verifyEvent:fr,decode:ir,npub:t=>In("npub",t),nsec:t=>In("nsec",t),randomHex:t=>D(X(t))};})();
+/*! Bundled license information:
+
+@noble/hashes/esm/utils.js:
+  (*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+
+@noble/curves/esm/utils.js:
+@noble/curves/esm/abstract/modular.js:
+@noble/curves/esm/abstract/curve.js:
+@noble/curves/esm/abstract/weierstrass.js:
+@noble/curves/esm/_shortw_utils.js:
+@noble/curves/esm/secp256k1.js:
+  (*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+
+@scure/base/lib/esm/index.js:
+  (*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
+*/
+
+</script>
+<script>
+(() => {
+'use strict';
+const NL = window.NostrLite;
+const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080;
+// รีเลย์กำหนดตายตัวที่นี่ที่เดียว (ผู้ใช้ไม่ต้องรู้) — ทดสอบด้วย ?relay=ws://127.0.0.1:7777 เพื่อชี้ไปรีเลย์อื่น
+const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io', 'wss://relay.primal.net'];
+const qRelay = new URLSearchParams(location.search).get('relay');
+const RELAYS = qRelay && /^wss?:\/\//i.test(qRelay) ? [qRelay] : DEFAULT_RELAYS;
+const ONLINE_MS = 75000;      // บอร์ดส่งสถานะทุก ~30 วินาที
+const MAX_SKEW = 180;
+const HIST_MAX = 1500;
+const $ = (s, r = document) => r.querySelector(s);
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (_) {} },
+};
+
+// ---------- สถานะ ----------
+let cfg = store.get('nvpn.cfg', null);        // {v:2, bsk, widgets[]}
+let sk = store.get('nvpn.sk', null);          // กุญแจของหน้าเว็บ (ผู้สั่ง)
+let mePk = null, boardPk = null;
+const ds = {};
+let hist = store.get('nvpn.hist', {});
+let lastStatusAt = 0;
+const seen = new Set();
+const pending = new Map();
+const relays = [];
+const widgetEls = new Map();
+let editMode = false;
+
+const now = () => Math.floor(Date.now() / 1000);
+function toast(msg, ms = 2600) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+function log(...a) {
+  const el = $('#log');
+  el.textContent += new Date().toLocaleTimeString('th-TH') + '  ' + a.join(' ') + '\n';
+  if (el.textContent.length > 20000) el.textContent = el.textContent.slice(-12000);
+  el.scrollTop = el.scrollHeight;
+}
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const c of kids) if (c != null) e.append(c);
+  return e;
+}
+function svg(tag, attrs) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  return e;
+}
+const uid = () => 'w' + NL.randomHex(4);
+const isHex64 = (x) => typeof x === 'string' && /^[0-9a-f]{64}$/.test(x);
+const fmt = (n) => {
+  if (typeof n !== 'number' || !isFinite(n)) return String(n);
+  const a = Math.abs(n);
+  return a >= 1000 ? n.toFixed(0) : a >= 100 ? n.toFixed(1) : String(Math.round(n * 100) / 100);
+};
+const num = (v) => typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : NaN);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const saveCfg = () => store.set('nvpn.cfg', cfg);
+
+// ---------- widget model ----------
+const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ' };
+const isControl = (t) => t === 'switch' || t === 'slider';
+function sanitizeWidget(w) {
+  if (!w || typeof w !== 'object' || !TYPES[w.type]) return null;
+  const n = (x) => (x === '' || x == null || !isFinite(Number(x))) ? '' : Number(x);
+  const key = String(w.key || '');
+  if (!/^V\d{1,3}$/.test(key)) return null;
+  return {
+    id: typeof w.id === 'string' ? w.id.slice(0, 20) : uid(), type: w.type,
+    label: String(w.label || TYPES[w.type]).slice(0, 40), key,
+    min: n(w.min), max: n(w.max), step: n(w.step), unit: String(w.unit || '').slice(0, 12),
+    range: [300, 3600, 86400, 0].includes(w.range) ? w.range : 300,
+  };
+}
+function nextPin() {
+  const used = new Set(cfg.widgets.map(w => w.key));
+  for (let i = 0; i < 1000; i++) if (!used.has('V' + i)) return 'V' + i;
+  return 'V999';
+}
+
+// ---------- กุญแจ (สร้างให้อัตโนมัติ) ----------
+function ensureKeys() {
+  if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nvpn.sk', sk); }
+  if (!cfg || cfg.v !== 2 || !isHex64(cfg.bsk)) cfg = { v: 2, bsk: NL.genSecret(), widgets: [] };
+  cfg.widgets = (cfg.widgets || []).map(sanitizeWidget).filter(Boolean);
+  mePk = NL.pubFromSecret(sk); boardPk = NL.pubFromSecret(cfg.bsk);
+  saveCfg();
+}
+
+// ---------- รีเลย์ ----------
+class Relay {
+  constructor(url) { this.url = url; this.ws = null; this.open = false; this.tries = 0; this.dead = false; this.connect(); }
+  connect() {
+    if (this.dead) return;
+    try { this.ws = new WebSocket(this.url); } catch (e) { log('✗', this.url, e.message); return this.retry(); }
+    this.ws.onopen = () => { this.open = true; this.tries = 0; log('✓ เชื่อมต่อ', this.url); updRelays(); this.sub(); requestStatus(); };
+    this.ws.onmessage = (m) => this.onMsg(m.data);
+    this.ws.onclose = () => { this.open = false; updRelays(); this.retry(); };
+    this.ws.onerror = () => { log('✗ error', this.url); };
+  }
+  sub() {
+    if (!this.open) return;
+    this.ws.send(JSON.stringify(['REQ', 'nvpn',
+      { kinds: [K_STATUS], authors: [boardPk], since: now() - 120 },
+      { kinds: [K_REPLY], authors: [boardPk], '#p': [mePk], since: now() - 120 }]));
+  }
+  retry() { if (this.dead) return; const d = Math.min(30000, 1000 * 2 ** Math.min(this.tries++, 5)); setTimeout(() => this.connect(), d); }
+  send(obj) { if (this.open) { this.ws.send(JSON.stringify(obj)); return true; } return false; }
+  close() { this.dead = true; this.open = false; try { this.ws && this.ws.close(); } catch (_) {} }
+  onMsg(raw) {
+    let m; try { m = JSON.parse(raw); } catch (_) { return; }
+    if (!Array.isArray(m)) return;
+    if (m[0] === 'EVENT' && m[2]) onEvent(m[2], this.url);
+    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); if (!m[2]) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
+    else if (m[0] === 'NOTICE') log('NOTICE', this.url, String(m[1] || ''));
+  }
+}
+function updRelays() {
+  const open = relays.filter(r => r.open).length;
+  $('#tRelay').textContent = open + '/' + relays.length;
+  $('#dRelay').className = 'dot ' + (open === 0 ? 'off' : open < relays.length ? 'mid' : 'on');
+}
+function connectAll() {
+  relays.splice(0).forEach(r => r.close()); seen.clear();
+  for (const u of RELAYS) relays.push(new Relay(u));
+  updRelays();
+}
+function broadcast(ev) { let n = 0; for (const r of relays) if (r.send(['EVENT', ev])) n++; return n; }
+
+// ---------- รับอีเวนต์ ----------
+function onEvent(ev, url) {
+  if (!ev || typeof ev.id !== 'string' || seen.has(ev.id)) return;
+  if (ev.pubkey !== boardPk) return;
+  if (!NL.verifyEvent(ev)) { log('✗ ลายเซ็น/ไอดีไม่ถูกต้อง จาก', url); return; }
+  seen.add(ev.id); if (seen.size > 600) seen.delete(seen.values().next().value);
+  if (Math.abs(now() - ev.created_at) > MAX_SKEW) { log('ทิ้งอีเวนต์เวลาเพี้ยน', String(ev.created_at - now()) + 's'); return; }
+  let body; try { body = JSON.parse(ev.content); } catch (_) { body = { text: String(ev.content).slice(0, 200) }; }
+  if (ev.kind === K_STATUS) onStatus(body, ev); else if (ev.kind === K_REPLY) onReply(body, ev);
+}
+function flatten(o, prefix, out) {
+  for (const [k, v] of Object.entries(o)) {
+    const key = prefix ? prefix + '.' + k : k;
+    if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string') out[key] = v;
+    else if (v && typeof v === 'object' && !Array.isArray(v)) flatten(v, key, out);
+  }
+  return out;
+}
+function onStatus(body, ev) {
+  lastStatusAt = Date.now();
+  const nameTag = (ev.tags || []).find(t => t[0] === 'name');
+  if (nameTag && nameTag[1]) $('#boardName').textContent = '· ' + String(nameTag[1]).slice(0, 40);
+  if (!body || typeof body !== 'object') return;
+  const flat = flatten(body, '', {}); const t = Date.now(); const changed = [];
+  for (const [k, v] of Object.entries(flat)) {
+    ds[k] = { v, ts: t };
+    const n = num(v);
+    if (isFinite(n)) { const a = hist[k] || (hist[k] = []); a.push([t, n]); if (a.length > HIST_MAX) a.splice(0, a.length - HIST_MAX); }
+    changed.push(k);
+  }
+  for (const w of cfg.widgets) if (changed.includes(w.key)) clearPending(w.id);
+  widgetEls.forEach(x => x.update());
+  updBoard();
+}
+function onReply(body, ev) {
+  const e = (ev.tags || []).find(t => t[0] === 'e');
+  const p = e && pending.get(e[1]);
+  log('ตอบกลับ', JSON.stringify(body).slice(0, 200));
+  if (p) {
+    pending.delete(e[1]);
+    if (body && body.ok === false) toast('บอร์ดปฏิเสธ: ' + (body.err || body.error || '?'));
+    if (p.onDone) p.onDone(body, Date.now() - p.t);
+  }
+}
+function updBoard() {
+  const age = Date.now() - lastStatusAt, on = lastStatusAt && age < ONLINE_MS;
+  $('#dBoard').className = 'dot ' + (!lastStatusAt ? '' : on ? 'on' : 'off');
+  $('#tBoard').textContent = !lastStatusAt ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
+  for (const w of cfg.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', !on || !ds[w.key]); }
+}
+
+// ---------- ส่งคำสั่ง ----------
+async function sendCmd(obj, label, onDone) {
+  const base = { kind: K_CMD, created_at: now(), tags: [['p', boardPk]], content: JSON.stringify(obj) };
+  const ev = NL.signEvent(base, sk);
+  const n = broadcast(ev);
+  if (!n) { toast('ยังไม่ได้เชื่อมต่อรีเลย์ ลองใหม่อีกครั้ง'); return null; }
+  pending.set(ev.id, { t: Date.now(), label, onDone });
+  setTimeout(() => pending.delete(ev.id), 15000);
+  log('→ ส่ง', base.content, '(' + n + ' รีเลย์)');
+  return ev.id;
+}
+let lastStatusReq = 0;
+function requestStatus() {
+  if (Date.now() - lastStatusReq < 8000) return;
+  lastStatusReq = Date.now();
+  setTimeout(() => sendCmd({ cmd: 'status' }, 'status'), 400);
+}
+async function sendW(w, value) {
+  setPending(w.id);
+  const id = await sendCmd({ cmd: 'vw', pin: w.key, arg: value }, 'w', (body) => {
+    clearPending(w.id);
+    if (!body || body.ok !== false) ds[w.key] = { v: value, ts: Date.now() };
+    const x = widgetEls.get(w.id); if (x) x.update();
+  });
+  if (!id) clearPending(w.id);
+  return id;
+}
+const pendTimers = new Map();
+function setPending(id, ms = 6000) {
+  const x = widgetEls.get(id); if (!x) return;
+  x.el.classList.add('pend'); clearTimeout(pendTimers.get(id));
+  pendTimers.set(id, setTimeout(() => {
+    if (x.el.classList.contains('pend')) { x.el.classList.remove('pend'); toast('บอร์ดยังไม่ตอบ — ใส่โค้ด 🔌 ในบอร์ดแล้วหรือยัง? บอร์ดออนไลน์อยู่ไหม?', 4500); x.update(); }
+  }, ms));
+}
+function clearPending(id) { const x = widgetEls.get(id); if (x) x.el.classList.remove('pend'); clearTimeout(pendTimers.get(id)); }
+
+// ---------- widget ----------
+function cardBase(w, ...body) {
+  const tools = h('div', { class: 'tools' },
+    h('button', { text: 'แก้ไข', onclick: () => openWidgetDlg(w) }),
+    h('button', { class: 'danger', text: 'ลบ', onclick: () => { if (confirm('ลบ "' + w.label + '" ? (' + w.key + ' จะว่างและถูกใช้ซ้ำได้)')) { cfg.widgets = cfg.widgets.filter(x => x.id !== w.id); saveCfg(); renderAll(); } } }),
+    h('button', { text: '←', title: 'เลื่อนขึ้น', onclick: () => moveW(w, -1) }),
+    h('button', { text: '→', title: 'เลื่อนลง', onclick: () => moveW(w, 1) }));
+  return h('div', { class: 'card' + (w.type === 'chart' ? ' wide' : '') },
+    h('h3', null, h('span', { text: w.label }), h('span', { class: 'pin', text: w.key })), ...body, tools);
+}
+function moveW(w, d) {
+  const i = cfg.widgets.findIndex(x => x.id === w.id), j = i + d;
+  if (j < 0 || j >= cfg.widgets.length) return;
+  [cfg.widgets[i], cfg.widgets[j]] = [cfg.widgets[j], cfg.widgets[i]]; saveCfg(); renderAll();
+}
+const rangeOf = (w) => ({ min: w.min === '' ? 0 : w.min, max: w.max === '' ? 100 : w.max });
+
+function mkSwitch(w) {
+  const btn = h('button', { class: 'sw', role: 'switch', 'aria-label': w.label });
+  const txt = h('span', { text: '—' });
+  const isOn = () => { const d = ds[w.key]; if (!d) return null; const v = d.v; return v === true || v === 'on' || num(v) > 0; };
+  let opt = null;
+  btn.addEventListener('click', async () => {
+    const next = !(opt != null ? opt : isOn());
+    opt = next; el.classList.add('pend'); update();
+    const id = await sendW(w, next ? 1 : 0);
+    if (!id) { opt = null; update(); }
+  });
+  const el = cardBase(w, h('div', { class: 'swrow' }, btn, txt));
+  function update() {
+    const real = isOn();
+    if (opt != null && real !== null && !el.classList.contains('pend')) opt = null;
+    const on = opt != null ? opt : real;
+    btn.classList.toggle('on', !!on); btn.setAttribute('aria-checked', String(!!on));
+    btn.classList.toggle('pending', el.classList.contains('pend'));
+    txt.textContent = on == null ? '—' : on ? 'เปิด' : 'ปิด';
+  }
+  return { el, update };
+}
+function mkSlider(w) {
+  const { min, max } = rangeOf(w);
+  const inp = h('input', { type: 'range', min: String(min), max: String(max), step: String(w.step || 1), 'aria-label': w.label });
+  const val = h('div', { class: 'big' });
+  let dragging = false, lastSend = 0, tmr = null;
+  const show = () => { val.textContent = ''; val.append(fmt(Number(inp.value)), h('small', { text: w.unit })); };
+  const push = () => sendW(w, Number(inp.value));
+  inp.addEventListener('pointerdown', () => { dragging = true; });
+  inp.addEventListener('input', () => {
+    show(); const t = Date.now();
+    if (t - lastSend > 500) { lastSend = t; push(); } else { clearTimeout(tmr); tmr = setTimeout(() => { lastSend = Date.now(); push(); }, 500 - (t - lastSend)); }
+  });
+  const end = () => { dragging = false; };
+  inp.addEventListener('change', end); inp.addEventListener('pointerup', end); inp.addEventListener('pointercancel', end);
+  const el = cardBase(w, val, inp);
+  function update() {
+    const d = ds[w.key];
+    if (d && !dragging && isFinite(num(d.v)) && !el.classList.contains('pend')) inp.value = String(clamp(num(d.v), min, max));
+    show();
+  }
+  return { el, update };
+}
+function mkValue(w) {
+  const big = h('div', { class: 'big', text: '—' }), sub = h('div', { class: 'sub' });
+  const el = cardBase(w, big, sub);
+  function update() {
+    const d = ds[w.key]; big.textContent = '';
+    if (!d) { big.textContent = '—'; sub.textContent = 'รอค่าจากบอร์ด'; return; }
+    big.append(typeof d.v === 'string' ? d.v : fmt(num(d.v)), h('small', { text: w.unit }));
+    sub.textContent = 'อัปเดต ' + new Date(d.ts).toLocaleTimeString('th-TH');
+  }
+  return { el, update };
+}
+function mkGauge(w) {
+  const { min, max } = rangeOf(w);
+  const s = svg('svg', { viewBox: '0 0 200 120', class: 'gauge', role: 'img', 'aria-label': w.label });
+  const D = 'M20 105 A80 80 0 0 1 180 105';
+  s.append(svg('path', { d: D, fill: 'none', stroke: 'var(--track)', 'stroke-width': '16', 'stroke-linecap': 'round' }));
+  const arc = svg('path', { d: D, fill: 'none', stroke: 'var(--accent)', 'stroke-width': '16', 'stroke-linecap': 'round', pathLength: '100', 'stroke-dasharray': '0 100' });
+  const t = svg('text', { x: '100', y: '92' }); t.textContent = '—';
+  const u = svg('text', { x: '100', y: '112', class: 'u' }); u.textContent = w.unit;
+  s.append(arc, t, u);
+  const el = cardBase(w, s);
+  function update() {
+    const d = ds[w.key]; const n = d ? num(d.v) : NaN;
+    if (!isFinite(n)) { t.textContent = '—'; arc.setAttribute('stroke-dasharray', '0 100'); return; }
+    t.textContent = fmt(n);
+    arc.setAttribute('stroke-dasharray', (clamp((n - min) / ((max - min) || 1), 0, 1) * 100).toFixed(1) + ' 100');
+  }
+  return { el, update };
+}
+const RANGES = [[300, '5 นาที'], [3600, '1 ชม.'], [86400, '24 ชม.'], [0, 'ทั้งหมด']];
+function mkChart(w) {
+  const cv = h('canvas', { role: 'img', 'aria-label': w.label, title: 'แตะเพื่อเปลี่ยนช่วงเวลา' });
+  const sub = h('div', { class: 'sub' });
+  cv.addEventListener('click', () => { const i = RANGES.findIndex(r => r[0] === w.range); w.range = RANGES[(i + 1) % RANGES.length][0]; saveCfg(); update(); });
+  const el = cardBase(w, cv, sub);
+  function update() {
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 300, H = cv.clientHeight || 150;
+    if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    const cs = getComputedStyle(document.documentElement), col = (n) => cs.getPropertyValue(n).trim() || '#888';
+    const nowMs = Date.now(), span = (w.range || 0) * 1000;
+    const pts = (hist[w.key] || []).filter(p => !span || p[0] >= nowMs - span);
+    const rl = RANGES.find(r => r[0] === (w.range || 0))[1];
+    sub.textContent = pts.length ? rl + ' · ' + pts.length + ' จุด · แตะเพื่อเปลี่ยนช่วง' : 'ยังไม่มีข้อมูล (เก็บเมื่อเปิดหน้านี้ไว้และบอร์ดส่งค่า)';
+    if (pts.length < 1) return;
+    const t0 = span ? nowMs - span : pts[0][0], t1 = span ? nowMs : Math.max(pts[pts.length - 1][0], t0 + 1);
+    let lo = w.min === '' ? Math.min(...pts.map(p => p[1])) : w.min, hi = w.max === '' ? Math.max(...pts.map(p => p[1])) : w.max;
+    if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+    const padL = 36, padR = 8, padT = 8, padB = 18;
+    const X = (t) => padL + (t - t0) / ((t1 - t0) || 1) * (W - padL - padR);
+    const Y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+    c.strokeStyle = col('--line'); c.fillStyle = col('--muted'); c.font = '10px system-ui'; c.lineWidth = 1;
+    for (let i = 0; i <= 3; i++) { const v = lo + (hi - lo) * i / 3, y = Y(v); c.beginPath(); c.moveTo(padL, y); c.lineTo(W - padR, y); c.stroke(); c.fillText(fmt(v), 2, y + 3); }
+    c.strokeStyle = col('--accent'); c.lineWidth = 2; c.beginPath();
+    pts.forEach((p, i) => { const x = X(p[0]), y = Y(p[1]); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+    c.stroke();
+    const last = pts[pts.length - 1]; c.fillStyle = col('--accent'); c.beginPath(); c.arc(X(last[0]), Y(last[1]), 3, 0, 7); c.fill();
+  }
+  return { el, update };
+}
+const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart };
+
+function renderAll() {
+  const g = $('#grid'); g.replaceChildren(); widgetEls.clear();
+  for (const w of cfg.widgets) { const x = MK[w.type](w); widgetEls.set(w.id, x); g.append(x.el); x.update(); }
+  if (!cfg.widgets.length) {
+    g.append(h('div', { class: 'hero' },
+      h('h2', { text: 'เริ่มต้นใช้งาน' }),
+      h('ol', null,
+        h('li', { text: 'กด ＋ สร้างสวิตช์ / ช่องแสดงค่าที่ต้องการ' }),
+        h('li', { text: 'กด 🔌 คัดลอกโค้ดเชื่อมบอร์ดไปใส่ในสเก็ตช์' }),
+        h('li', { text: 'อัปโหลดเข้าบอร์ด แล้วหน้านี้จะออนไลน์เอง' })),
+      h('div', null, h('button', { class: 'primary', text: '＋ เพิ่ม widget', onclick: () => openWidgetDlg(null) }))));
+  }
+  g.append(h('div', { class: 'card addcard', onclick: () => openWidgetDlg(null) }, h('div', { class: 'big', text: '＋' }), h('div', { text: 'เพิ่ม widget' })));
+  updBoard();
+}
+
+// ---------- เพิ่ม/แก้ widget ----------
+let editingW = null;
+function wTypeUi() {
+  const t = $('#wType').value;
+  $('#wRange').style.display = t === 'switch' ? 'none' : '';
+  $('#wStepBox').style.display = t === 'slider' ? '' : 'none';
+}
+function openWidgetDlg(w) {
+  editingW = w;
+  $('#wTitle').textContent = w ? 'แก้ไข widget' : 'เพิ่ม widget';
+  $('#wType').value = w ? w.type : 'switch'; $('#wType').disabled = !!w;
+  $('#wLabel').value = w ? w.label : '';
+  $('#wMin').value = w && w.min !== '' ? w.min : ''; $('#wMax').value = w && w.max !== '' ? w.max : '';
+  $('#wStep').value = w && w.step !== '' ? w.step : ''; $('#wUnit').value = w ? w.unit : '';
+  $('#wPin').textContent = w ? w.key : nextPin();
+  wTypeUi(); $('#dlgW').showModal();
+}
+$('#wType').addEventListener('change', wTypeUi);
+$('#wClose').onclick = () => $('#dlgW').close();
+$('#wSave').onclick = () => {
+  const type = $('#wType').value;
+  const nw = sanitizeWidget({
+    id: editingW ? editingW.id : uid(), type, key: editingW ? editingW.key : nextPin(),
+    label: $('#wLabel').value.trim() || TYPES[type], min: $('#wMin').value, max: $('#wMax').value,
+    step: $('#wStep').value, unit: $('#wUnit').value, range: editingW ? editingW.range : 300,
+  });
+  if (!nw) { toast('บันทึกไม่ได้'); return; }
+  if (type === 'slider' || type === 'gauge') { if (nw.min === '') nw.min = 0; if (nw.max === '') nw.max = 100; }
+  if (editingW) cfg.widgets[cfg.widgets.findIndex(x => x.id === editingW.id)] = nw; else cfg.widgets.push(nw);
+  saveCfg(); $('#dlgW').close(); renderAll();
+  if (!editingW) toast('เพิ่มแล้ว — pin ' + nw.key + ' (ดูโค้ดเชื่อมบอร์ดที่ 🔌)');
+};
+
+// ---------- โค้ดเชื่อมบอร์ด ----------
+function genCode() {
+  const L = [];
+  L.push('#include <NvpnDash.h>');
+  L.push('');
+  L.push('// ===== จากหน้าเว็บ nvpn — ห้ามอัปโหลดขึ้น GitHub =====');
+  L.push('#define NVPN_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
+  L.push('#define NVPN_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
+  L.push('#define NVPN_RELAYS       "' + RELAYS.map(u => u.replace(/^wss?:\/\//i, '')).join(',') + '"');
+  L.push('');
+  if (cfg.widgets.length) {
+    L.push('// ===== ตำแหน่ง (pin) ของแต่ละ widget =====');
+    const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
+    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : ' [บอร์ดส่ง]'));
+  } else L.push('// (ยังไม่มี widget — กด ＋ ในหน้าเว็บก่อน)');
+  return L.join('\n');
+}
+function genUse() {
+  const L = [];
+  const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
+  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type)).sort(byPin);
+  L.push('void setup() {');
+  for (const w of so) L.push('  NvpnDash.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
+  for (const w of so) L.push('  NvpnDash.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
+  L.push('  NvpnDash.begin("ชื่อWiFi", "รหัสWiFi", NVPN_BOARD_SECRET, NVPN_CONTROLLER, NVPN_RELAYS);');
+  L.push('}');
+  L.push('');
+  L.push('void loop() {');
+  L.push('  NvpnDash.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ');
+  for (const w of oo) L.push('  NvpnDash.set(PIN_' + w.key + ', 0);  // ใส่ค่าที่อ่านได้: ' + w.label);
+  L.push('}');
+  return L.join('\n');
+}
+function openConn() {
+  $('#cCode').value = genCode(); $('#cUse').value = genUse();
+  const tb = $('#cPins'); tb.replaceChildren();
+  const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
+  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : 'บอร์ดส่งค่า' })));
+  if (!sorted.length) tb.append(h('tr', null, h('td', { colspan: '3', text: 'ยังไม่มี widget' })));
+  $('#dlgConn').showModal(); $('#cCopy').focus(); $('#cCode').scrollTop = 0;
+}
+async function copyText(text, ta) {
+  try { await navigator.clipboard.writeText(text); toast('คัดลอกแล้ว'); }
+  catch (_) { if (ta) { ta.focus(); ta.select(); try { document.execCommand('copy'); toast('คัดลอกแล้ว'); return; } catch (__) {} } toast('คัดลอกไม่ได้ — เลือกข้อความแล้วคัดลอกเอง'); }
+}
+$('#bConn').onclick = openConn;
+$('#cClose').onclick = () => $('#dlgConn').close();
+$('#cCopy').onclick = () => copyText($('#cCode').value, $('#cCode'));
+const b64e = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64d = (s) => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))));
+function textDlg(title, text, readonly, ok) {
+  $('#tTitle').textContent = title; const a = $('#tArea'); a.value = text; a.readOnly = !!readonly;
+  $('#tOk').onclick = () => { const v = a.value; $('#dlgTxt').close(); ok && ok(v); };
+  $('#tClose').onclick = () => $('#dlgTxt').close();
+  $('#dlgTxt').showModal();
+}
+$('#cExp').onclick = () => {
+  if (!confirm('รหัสนี้มีกุญแจลับ ใครได้ไปก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return;
+  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nvpn1.' + b64e({ bsk: cfg.bsk, sk, widgets: cfg.widgets }), true);
+};
+$('#cImp').onclick = () => textDlg('วางรหัสย้ายเครื่อง', '', false, async (v) => {
+  try {
+    const j = b64d(String(v).trim().replace(/^nvpn1\./, ''));
+    if (!isHex64(j.bsk) || !isHex64(j.sk)) throw new Error('กุญแจไม่ถูกต้อง');
+    cfg = { v: 2, bsk: j.bsk, widgets: j.widgets || [] }; sk = j.sk; store.set('nvpn.sk', sk);
+    $('#dlgConn').close(); await start(); toast('นำเข้าแล้ว');
+  } catch (e) { toast('รหัสไม่ถูกต้อง: ' + e.message); }
+});
+$('#cRegen').onclick = async () => {
+  if (!confirm('สร้างกุญแจใหม่ทั้งหมด? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดแล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
+  sk = NL.genSecret(); store.set('nvpn.sk', sk); cfg.bsk = NL.genSecret(); saveCfg();
+  $('#dlgConn').close(); await start(); openConn();
+};
+$('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nvpn.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
+$('#bAdd').onclick = () => openWidgetDlg(null);
+$('#bEdit').onclick = () => { editMode = !editMode; document.body.classList.toggle('edit', editMode); $('#bEdit').textContent = editMode ? '✅' : '✏️'; };
+$('#bLog').onclick = (e) => { e.preventDefault(); $('#log').classList.toggle('show'); };
+
+// ---------- เริ่มต้น ----------
+async function start() {
+  relays.splice(0).forEach(r => r.close());
+  lastStatusAt = 0; for (const k of Object.keys(ds)) delete ds[k];
+  ensureKeys(); renderAll(); connectAll();
+}
+setInterval(updBoard, 1000);
+setInterval(() => store.set('nvpn.hist', hist), 20000);
+window.addEventListener('pagehide', () => store.set('nvpn.hist', hist));
+window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
+start().then(() => { window.__nvpn = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => boardPk }; });
+})();
+</script>
+</body>
+</html>

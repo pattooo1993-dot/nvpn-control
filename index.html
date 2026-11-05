@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>nvpn-esp32 แดชบอร์ด</title>
+<title>NostrDash แดชบอร์ด</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E📟%3C/text%3E%3C/svg%3E">
 <style>
 :root{
@@ -98,11 +98,27 @@ table.pins th{color:var(--muted);font-weight:500;font-size:11px}
 .steps{margin:0;padding-left:20px;font-size:13px}
 .steps li{margin:3px 0}
 header .add{background:var(--accent);border-color:var(--accent);color:#fff}
+.mon{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.monhead{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.monhead b{font-size:14px}.monhead .sub{flex:1;min-width:120px}
+.monhead button{padding:3px 10px;font-size:12px}
+#monBody{max-height:300px;overflow:auto;padding:6px 10px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg)}
+#monBody.hide{display:none}
+.ml{padding:3px 0;border-bottom:1px dashed var(--line)}
+.ml:last-child{border-bottom:0}
+.ml .mt{color:var(--muted);margin-right:8px}
+.ml .md{padding-left:62px;color:var(--muted);white-space:pre-wrap;word-break:break-word}
+.ml.ok .mx,.ml.ok .md{color:var(--ok)}
+.ml.bad .mx,.ml.bad .md{color:var(--bad)}
+.ml.warn .mx,.ml.warn .md{color:var(--warn)}
+.ml.dim .mx{color:var(--muted)}
+.ml.cmd .mx{font-weight:600}
+.monempty{color:var(--muted);padding:8px 0}
 </style>
 </head>
 <body>
 <header>
-  <h1>nvpn <span class="sub" id="boardName"></span></h1>
+  <h1>NostrDash <span class="sub" id="boardName"></span></h1>
   <span class="pill" title="สถานะบอร์ด"><span class="dot" id="dBoard"></span><span id="tBoard">รอบอร์ด</span></span>
   <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ (กำหนดไว้ให้แล้ว)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
   <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
@@ -112,6 +128,11 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 
 <main>
   <div class="grid" id="grid"></div>
+  <section class="mon" aria-label="จอตรวจสอบ">
+    <div class="monhead"><b>📟 จอตรวจสอบ</b><span class="sub">ดูว่าบอร์ดรับคำสั่งจริงไหม ทำงานจริงไหม</span>
+      <button id="monTog">ซ่อน</button><button id="monClr">ล้าง</button></div>
+    <div id="monBody"><div class="monempty" id="monEmpty">ยังไม่มีเหตุการณ์ — ลองกดสวิตช์ แล้วดูผลที่นี่</div></div>
+  </section>
   <div id="log"></div>
 </main>
 <footer>
@@ -163,7 +184,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <table class="pins"><thead><tr><th>pin</th><th>widget</th><th>ทิศทาง</th></tr></thead><tbody id="cPins"></tbody></table>
   <label>ตัวอย่างวิธีใช้ในโค้ดบอร์ด</label>
   <textarea id="cUse" readonly spellcheck="false" style="min-height:130px"></textarea>
-  <div class="note">ติดตั้งไลบรารี <code>nvpn-esp32</code> (มี <code>NvpnDash.h</code>), <code>WebSockets</code> (Markus Sattler) และ <code>ArduinoJson</code> v7 ใน Arduino IDE ก่อน <code>NvpnDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที</div>
+  <div class="note">ติดตั้งไลบรารี <code>NostrDash</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที</div>
   <label>ย้ายไปเครื่องอื่น / สำรอง</label>
   <div class="row">
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
@@ -226,12 +247,15 @@ const store = {
   del(k) { try { localStorage.removeItem(k); } catch (_) {} },
 };
 
+// ย้ายข้อมูลจากชื่อเดิม (nvpn.*) → nostrdash.* ครั้งเดียว (กุญแจและ widget ไม่หาย)
+for (const k of ['cfg', 'sk', 'hist']) { try { if (localStorage.getItem('nostrdash.' + k) == null && localStorage.getItem('nvpn.' + k) != null) localStorage.setItem('nostrdash.' + k, localStorage.getItem('nvpn.' + k)); } catch (_) {} }
+
 // ---------- สถานะ ----------
-let cfg = store.get('nvpn.cfg', null);        // {v:2, bsk, widgets[]}
-let sk = store.get('nvpn.sk', null);          // กุญแจของหน้าเว็บ (ผู้สั่ง)
+let cfg = store.get('nostrdash.cfg', null);        // {v:2, bsk, widgets[]}
+let sk = store.get('nostrdash.sk', null);          // กุญแจของหน้าเว็บ (ผู้สั่ง)
 let mePk = null, boardPk = null;
 const ds = {};
-let hist = store.get('nvpn.hist', {});
+let hist = store.get('nostrdash.hist', {});
 let lastStatusAt = 0;
 const seen = new Set();
 const pending = new Map();
@@ -250,6 +274,98 @@ function log(...a) {
   if (el.textContent.length > 20000) el.textContent = el.textContent.slice(-12000);
   el.scrollTop = el.scrollHeight;
 }
+// ---------- จอตรวจสอบ ----------
+const CMD_TIMEOUT = 8000, MON_MAX = 150;
+const cmds = new Map();   // eventId -> บันทึกการติดตามคำสั่ง
+function hms() { return new Date().toLocaleTimeString('th-TH', { hour12: false }); }
+function monAdd(cls, text, detail) {
+  const body = $('#monBody'); const em = $('#monEmpty'); if (em) em.remove();
+  const near = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+  const el = document.createElement('div'); el.className = 'ml ' + cls;
+  const t = document.createElement('span'); t.className = 'mt'; t.textContent = hms();
+  const x = document.createElement('span'); x.className = 'mx'; x.textContent = text;
+  el.append(t, x);
+  if (detail != null) { const d = document.createElement('div'); d.className = 'md'; d.textContent = detail; el.append(d); }
+  body.append(el);
+  while (body.children.length > MON_MAX) body.firstChild.remove();
+  if (near) body.scrollTop = body.scrollHeight;
+  return el;
+}
+function monSet(el, cls, text, detail) {
+  el.className = 'ml ' + cls;
+  el.querySelector('.mx').textContent = text;
+  let d = el.querySelector('.md');
+  if (detail != null) { if (!d) { d = document.createElement('div'); d.className = 'md'; el.append(d); } d.textContent = detail; }
+  else if (d) d.remove();
+}
+const ERR_TH = {
+  'not-controller': 'กุญแจของหน้าเว็บนี้ไม่อยู่ใน NOSTRDASH_CONTROLLER ของบอร์ด (กด 🔌 คัดลอกโค้ดล่าสุดไปอัปโหลดบอร์ดใหม่)',
+  'bad-pin': 'บอร์ดไม่มี pin นี้ (ในโค้ดบอร์ดลืม NostrDash.onWrite(PIN_…) หรือยังไม่ได้อัปโหลดโค้ดล่าสุด)',
+  'bad-arg': 'ค่าที่ส่งไม่ใช่ตัวเลข',
+  'unknown-cmd': 'บอร์ดไม่รู้จักคำสั่งนี้ (เวอร์ชันโค้ดบอร์ดเก่าไหม?)',
+};
+function pinName(pin) { const w = cfg.widgets.find(x => x.key === pin); return w ? w.label + ' (' + pin + ')' : String(pin); }
+function cmdTitle(r) {
+  if (r.cmd === 'vw') return '→ สั่ง ' + pinName(r.pin) + ' = ' + fmt(Number(r.arg));
+  if (r.cmd === 'status') return '→ ขอสถานะจากบอร์ด';
+  return '→ ส่งคำสั่ง ' + r.cmd;
+}
+function renderCmd(r) {
+  const parts = [];
+  if (r.relayOk.length) parts.push('รีเลย์รับแล้ว: ' + r.relayOk.join(', '));
+  if (r.relayNo.length) parts.push('รีเลย์ปฏิเสธ: ' + r.relayNo.join(', '));
+  let cls = 'cmd', head = cmdTitle(r), lines = [];
+  if (r.replied && r.ok === false) {
+    cls = 'cmd bad'; lines.push('✗ บอร์ดปฏิเสธ (' + r.repMs + ' ms): ' + (ERR_TH[r.err] || r.err));
+  } else if (r.confirmed && r.cmd !== 'vw') {
+    cls = 'cmd ok';
+    lines.push((r.replied ? '✓ บอร์ดตอบ (' + r.repMs + ' ms)   ' : '') + '✓ ได้รับสถานะจากบอร์ด (' + r.confMs + ' ms)');
+  } else if (r.confirmed) {
+    cls = 'cmd ok';
+    lines.push((r.replied ? '✓ บอร์ดรับคำสั่ง (' + r.repMs + ' ms)' : '• ไม่ได้รับคำตอบ แต่สถานะจากบอร์ดตรงกัน') + '   ✓ ทำงานแล้ว: ค่าจริงจากบอร์ด = ' + fmt(Number(r.arg)) + ' (' + r.confMs + ' ms)');
+  } else if (r.replied) {
+    cls = 'cmd ok';
+    lines.push('✓ บอร์ดรับคำสั่ง (' + r.repMs + ' ms)' + (r.cmd === 'vw' ? '   ⏳ รอค่าจริงจากบอร์ดยืนยัน…' : ''));
+  } else if (r.timedOut) {
+    cls = 'cmd bad';
+    lines.push(r.relayOk.length ? '✗ ไม่มีคำตอบจากบอร์ดใน ' + (CMD_TIMEOUT / 1000) + ' วินาที — บอร์ดออนไลน์อยู่ไหม? ใส่โค้ด 🔌 ล่าสุดแล้วหรือยัง? (ถ้ารีเลย์ไม่ส่งต่อ kind 21078 บอร์ดจะไม่เห็นคำสั่ง)'
+      : '✗ ไม่มีรีเลย์ตอบรับคำสั่งเลย — ตรวจอินเทอร์เน็ต/รีเลย์ (จุดสีที่มุมบน)');
+  } else lines.push('⏳ ส่งแล้ว รอบอร์ดตอบ…');
+  if (parts.length) lines.push(parts.join('   '));
+  monSet(r.el, cls, head, lines.join('\n'));
+}
+function trackCmd(ev, obj) {
+  const r = { id: ev.id, cmd: obj.cmd, pin: obj.pin, arg: obj.arg, t: Date.now(), relayOk: [], relayNo: [], replied: false, ok: null, confirmed: false, timedOut: false };
+  r.el = monAdd('cmd', '', ''); cmds.set(ev.id, r); renderCmd(r);
+  r.timer = setTimeout(() => { if (!r.replied && !r.confirmed) { r.timedOut = true; renderCmd(r); } }, CMD_TIMEOUT);
+  setTimeout(() => cmds.delete(ev.id), 60000);
+}
+function cmdReply(eventId, body) {
+  const r = cmds.get(eventId); if (!r) return;
+  r.replied = true; r.ok = !(body && body.ok === false); r.err = body && (body.err || body.error); r.repMs = Date.now() - r.t; r.timedOut = false;
+  renderCmd(r);
+}
+function cmdRelayOk(eventId, host, accepted, why) {
+  const r = cmds.get(eventId); if (!r) return;
+  (accepted ? r.relayOk : r.relayNo).push(accepted ? host : host + (why ? ' (' + String(why).slice(0, 40) + ')' : ''));
+  renderCmd(r);
+}
+function cmdStatusCheck(flat, t) {      // ใช้เฉพาะค่าจากสถานะจริงของบอร์ดครั้งนี้ (ไม่ใช่ค่าที่หน้าเว็บเดาไว้)
+  for (const r of cmds.values()) {
+    if (r.confirmed || (r.replied && r.ok === false) || t - r.t > 20000) continue;
+    if (r.cmd === 'status') { r.confirmed = true; r.confMs = t - r.t; r.timedOut = false; renderCmd(r); continue; }
+    if (r.cmd !== 'vw' || !(r.pin in flat)) continue;
+    if (Math.abs(num(flat[r.pin]) - Number(r.arg)) < 1e-6) { r.confirmed = true; r.confMs = t - r.t; r.timedOut = false; renderCmd(r); }
+  }
+}
+let boardOn = null, lastBadSig = 0;
+function monBoardState(on) {
+  if (boardOn === on) return;
+  boardOn = on;
+  if (on) monAdd('ok', '● บอร์ดออนไลน์ — ได้รับสถานะ (ลายเซ็นถูกต้อง)');
+  else monAdd('warn', '○ ไม่ได้รับสถานะจากบอร์ดเกิน ' + (ONLINE_MS / 1000) + ' วินาที → ออฟไลน์');
+}
+
 function h(tag, attrs, ...kids) {
   const e = document.createElement(tag);
   if (attrs) for (const [k, v] of Object.entries(attrs)) {
@@ -273,7 +389,7 @@ const fmt = (n) => {
 };
 const num = (v) => typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : NaN);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-const saveCfg = () => store.set('nvpn.cfg', cfg);
+const saveCfg = () => store.set('nostrdash.cfg', cfg);
 
 // ---------- widget model ----------
 const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ' };
@@ -298,7 +414,7 @@ function nextPin() {
 
 // ---------- กุญแจ (สร้างให้อัตโนมัติ) ----------
 function ensureKeys() {
-  if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nvpn.sk', sk); }
+  if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nostrdash.sk', sk); }
   if (!cfg || cfg.v !== 2 || !isHex64(cfg.bsk)) cfg = { v: 2, bsk: NL.genSecret(), widgets: [] };
   cfg.widgets = (cfg.widgets || []).map(sanitizeWidget).filter(Boolean);
   mePk = NL.pubFromSecret(sk); boardPk = NL.pubFromSecret(cfg.bsk);
@@ -311,14 +427,15 @@ class Relay {
   connect() {
     if (this.dead) return;
     try { this.ws = new WebSocket(this.url); } catch (e) { log('✗', this.url, e.message); return this.retry(); }
-    this.ws.onopen = () => { this.open = true; this.tries = 0; log('✓ เชื่อมต่อ', this.url); updRelays(); this.sub(); requestStatus(); };
+    this.ws.onopen = () => { this.open = true; this.tries = 0; log('✓ เชื่อมต่อ', this.url); monAdd('dim', '• รีเลย์ ' + this.host() + ' เชื่อมต่อแล้ว'); updRelays(); this.sub(); requestStatus(); };
     this.ws.onmessage = (m) => this.onMsg(m.data);
-    this.ws.onclose = () => { this.open = false; updRelays(); this.retry(); };
+    this.ws.onclose = () => { if (this.open) monAdd('warn', '• รีเลย์ ' + this.host() + ' หลุด — กำลังต่อใหม่'); this.open = false; updRelays(); this.retry(); };
     this.ws.onerror = () => { log('✗ error', this.url); };
   }
+  host() { return this.url.replace(/^wss?:\/\//i, '').replace(/\/.*$/, ''); }
   sub() {
     if (!this.open) return;
-    this.ws.send(JSON.stringify(['REQ', 'nvpn',
+    this.ws.send(JSON.stringify(['REQ', 'nostrdash',
       { kinds: [K_STATUS], authors: [boardPk], since: now() - 120 },
       { kinds: [K_REPLY], authors: [boardPk], '#p': [mePk], since: now() - 120 }]));
   }
@@ -329,7 +446,7 @@ class Relay {
     let m; try { m = JSON.parse(raw); } catch (_) { return; }
     if (!Array.isArray(m)) return;
     if (m[0] === 'EVENT' && m[2]) onEvent(m[2], this.url);
-    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); if (!m[2]) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
+    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]); if (!m[2]) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
     else if (m[0] === 'NOTICE') log('NOTICE', this.url, String(m[1] || ''));
   }
 }
@@ -349,7 +466,7 @@ function broadcast(ev) { let n = 0; for (const r of relays) if (r.send(['EVENT',
 function onEvent(ev, url) {
   if (!ev || typeof ev.id !== 'string' || seen.has(ev.id)) return;
   if (ev.pubkey !== boardPk) return;
-  if (!NL.verifyEvent(ev)) { log('✗ ลายเซ็น/ไอดีไม่ถูกต้อง จาก', url); return; }
+  if (!NL.verifyEvent(ev)) { log('✗ ลายเซ็น/ไอดีไม่ถูกต้อง จาก', url); if (Date.now() - lastBadSig > 10000) { lastBadSig = Date.now(); monAdd('bad', '✗ ทิ้งอีเวนต์ที่อ้างว่ามาจากบอร์ดแต่ลายเซ็นไม่ถูกต้อง (' + url.replace(/^wss?:\/\//i, '') + ')'); } return; }
   seen.add(ev.id); if (seen.size > 600) seen.delete(seen.values().next().value);
   if (Math.abs(now() - ev.created_at) > MAX_SKEW) { log('ทิ้งอีเวนต์เวลาเพี้ยน', String(ev.created_at - now()) + 's'); return; }
   let body; try { body = JSON.parse(ev.content); } catch (_) { body = { text: String(ev.content).slice(0, 200) }; }
@@ -369,7 +486,10 @@ function onStatus(body, ev) {
   if (nameTag && nameTag[1]) $('#boardName').textContent = '· ' + String(nameTag[1]).slice(0, 40);
   if (!body || typeof body !== 'object') return;
   const flat = flatten(body, '', {}); const t = Date.now(); const changed = [];
+  const ctlChanged = [];
   for (const [k, v] of Object.entries(flat)) {
+    const old = ds[k];
+    if (old && old.v !== v && cfg.widgets.some(w => w.key === k && isControl(w.type))) ctlChanged.push(k + ' = ' + fmt(num(v)));
     ds[k] = { v, ts: t };
     const n = num(v);
     if (isFinite(n)) { const a = hist[k] || (hist[k] = []); a.push([t, n]); if (a.length > HIST_MAX) a.splice(0, a.length - HIST_MAX); }
@@ -377,12 +497,14 @@ function onStatus(body, ev) {
   }
   for (const w of cfg.widgets) if (changed.includes(w.key)) clearPending(w.id);
   widgetEls.forEach(x => x.update());
-  updBoard();
+  updBoard(); cmdStatusCheck(flat, t);
+  if (ctlChanged.length && !Array.from(cmds.values()).some(r => r.confirmed && t - (r.t + r.confMs) < 1500)) monAdd('info', '← สถานะจากบอร์ดเปลี่ยน: ' + ctlChanged.map(x => { const [k, v] = x.split(' = '); return pinName(k) + ' = ' + v; }).join(', '));
 }
 function onReply(body, ev) {
   const e = (ev.tags || []).find(t => t[0] === 'e');
   const p = e && pending.get(e[1]);
   log('ตอบกลับ', JSON.stringify(body).slice(0, 200));
+  if (e) cmdReply(e[1], body);
   if (p) {
     pending.delete(e[1]);
     if (body && body.ok === false) toast('บอร์ดปฏิเสธ: ' + (body.err || body.error || '?'));
@@ -394,6 +516,7 @@ function updBoard() {
   $('#dBoard').className = 'dot ' + (!lastStatusAt ? '' : on ? 'on' : 'off');
   $('#tBoard').textContent = !lastStatusAt ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
   for (const w of cfg.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', !on || !ds[w.key]); }
+  if (lastStatusAt) monBoardState(!!on);
 }
 
 // ---------- ส่งคำสั่ง ----------
@@ -403,6 +526,7 @@ async function sendCmd(obj, label, onDone) {
   const n = broadcast(ev);
   if (!n) { toast('ยังไม่ได้เชื่อมต่อรีเลย์ ลองใหม่อีกครั้ง'); return null; }
   pending.set(ev.id, { t: Date.now(), label, onDone });
+  trackCmd(ev, obj);
   setTimeout(() => pending.delete(ev.id), 15000);
   log('→ ส่ง', base.content, '(' + n + ' รีเลย์)');
   return ev.id;
@@ -424,11 +548,11 @@ async function sendW(w, value) {
   return id;
 }
 const pendTimers = new Map();
-function setPending(id, ms = 6000) {
+function setPending(id, ms = CMD_TIMEOUT) {
   const x = widgetEls.get(id); if (!x) return;
   x.el.classList.add('pend'); clearTimeout(pendTimers.get(id));
   pendTimers.set(id, setTimeout(() => {
-    if (x.el.classList.contains('pend')) { x.el.classList.remove('pend'); toast('บอร์ดยังไม่ตอบ — ใส่โค้ด 🔌 ในบอร์ดแล้วหรือยัง? บอร์ดออนไลน์อยู่ไหม?', 4500); x.update(); }
+    if (x.el.classList.contains('pend')) { x.el.classList.remove('pend'); toast('บอร์ดยังไม่ตอบ — ดูสาเหตุที่จอตรวจสอบด้านล่าง', 4500); x.update(); }
   }, ms));
 }
 function clearPending(id) { const x = widgetEls.get(id); if (x) x.el.classList.remove('pend'); clearTimeout(pendTimers.get(id)); }
@@ -608,12 +732,12 @@ $('#wSave').onclick = () => {
 // ---------- โค้ดเชื่อมบอร์ด ----------
 function genCode() {
   const L = [];
-  L.push('#include <NvpnDash.h>');
+  L.push('#include <NostrDash.h>');
   L.push('');
-  L.push('// ===== จากหน้าเว็บ nvpn — ห้ามอัปโหลดขึ้น GitHub =====');
-  L.push('#define NVPN_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
-  L.push('#define NVPN_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
-  L.push('#define NVPN_RELAYS       "' + RELAYS.map(u => u.replace(/^wss?:\/\//i, '')).join(',') + '"');
+  L.push('// ===== จากหน้าเว็บ NostrDash — ห้ามอัปโหลดขึ้น GitHub =====');
+  L.push('#define NOSTRDASH_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
+  L.push('#define NOSTRDASH_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
+  L.push('#define NOSTRDASH_RELAYS       "' + RELAYS.map(u => u.replace(/^wss?:\/\//i, '')).join(',') + '"');
   L.push('');
   if (cfg.widgets.length) {
     L.push('// ===== ตำแหน่ง (pin) ของแต่ละ widget =====');
@@ -627,14 +751,14 @@ function genUse() {
   const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
   const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type)).sort(byPin);
   L.push('void setup() {');
-  for (const w of so) L.push('  NvpnDash.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
-  for (const w of so) L.push('  NvpnDash.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
-  L.push('  NvpnDash.begin("ชื่อWiFi", "รหัสWiFi", NVPN_BOARD_SECRET, NVPN_CONTROLLER, NVPN_RELAYS);');
+  for (const w of so) L.push('  NostrDash.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
+  for (const w of so) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
+  L.push('  NostrDash.begin("ชื่อWiFi", "รหัสWiFi", NOSTRDASH_BOARD_SECRET, NOSTRDASH_CONTROLLER, NOSTRDASH_RELAYS);');
   L.push('}');
   L.push('');
   L.push('void loop() {');
-  L.push('  NvpnDash.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ');
-  for (const w of oo) L.push('  NvpnDash.set(PIN_' + w.key + ', 0);  // ใส่ค่าที่อ่านได้: ' + w.label);
+  L.push('  NostrDash.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ');
+  for (const w of oo) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // ใส่ค่าที่อ่านได้: ' + w.label);
   L.push('}');
   return L.join('\n');
 }
@@ -663,24 +787,26 @@ function textDlg(title, text, readonly, ok) {
 }
 $('#cExp').onclick = () => {
   if (!confirm('รหัสนี้มีกุญแจลับ ใครได้ไปก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return;
-  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nvpn1.' + b64e({ bsk: cfg.bsk, sk, widgets: cfg.widgets }), true);
+  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrdash1.' + b64e({ bsk: cfg.bsk, sk, widgets: cfg.widgets }), true);
 };
 $('#cImp').onclick = () => textDlg('วางรหัสย้ายเครื่อง', '', false, async (v) => {
   try {
-    const j = b64d(String(v).trim().replace(/^nvpn1\./, ''));
+    const j = b64d(String(v).trim().replace(/^(nostrdash1|nvpn1)\./, ''));
     if (!isHex64(j.bsk) || !isHex64(j.sk)) throw new Error('กุญแจไม่ถูกต้อง');
-    cfg = { v: 2, bsk: j.bsk, widgets: j.widgets || [] }; sk = j.sk; store.set('nvpn.sk', sk);
+    cfg = { v: 2, bsk: j.bsk, widgets: j.widgets || [] }; sk = j.sk; store.set('nostrdash.sk', sk);
     $('#dlgConn').close(); await start(); toast('นำเข้าแล้ว');
   } catch (e) { toast('รหัสไม่ถูกต้อง: ' + e.message); }
 });
 $('#cRegen').onclick = async () => {
   if (!confirm('สร้างกุญแจใหม่ทั้งหมด? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดแล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
-  sk = NL.genSecret(); store.set('nvpn.sk', sk); cfg.bsk = NL.genSecret(); saveCfg();
+  sk = NL.genSecret(); store.set('nostrdash.sk', sk); cfg.bsk = NL.genSecret(); saveCfg();
   $('#dlgConn').close(); await start(); openConn();
 };
-$('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nvpn.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
+$('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nostrdash.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
 $('#bAdd').onclick = () => openWidgetDlg(null);
 $('#bEdit').onclick = () => { editMode = !editMode; document.body.classList.toggle('edit', editMode); $('#bEdit').textContent = editMode ? '✅' : '✏️'; };
+$('#monClr').onclick = () => { $('#monBody').replaceChildren(); };
+$('#monTog').onclick = () => { const b = $('#monBody'); b.classList.toggle('hide'); $('#monTog').textContent = b.classList.contains('hide') ? 'แสดง' : 'ซ่อน'; };
 $('#bLog').onclick = (e) => { e.preventDefault(); $('#log').classList.toggle('show'); };
 
 // ---------- เริ่มต้น ----------
@@ -690,11 +816,11 @@ async function start() {
   ensureKeys(); renderAll(); connectAll();
 }
 setInterval(updBoard, 1000);
-setInterval(() => store.set('nvpn.hist', hist), 20000);
-window.addEventListener('pagehide', () => store.set('nvpn.hist', hist));
+setInterval(() => store.set('nostrdash.hist', hist), 20000);
+window.addEventListener('pagehide', () => store.set('nostrdash.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
-start().then(() => { window.__nvpn = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => boardPk }; });
+start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => boardPk }; });
 })();
 </script>
 </body>

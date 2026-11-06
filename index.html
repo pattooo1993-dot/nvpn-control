@@ -124,6 +124,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 .devhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .devhead b{flex:1;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .devbody{padding:12px}
+#qrBox{background:#fff;padding:12px;border-radius:10px;max-width:320px;margin:10px auto}#qrBox:empty{display:none}#qrBox svg{display:block;width:100%;height:auto}
 </style>
 </head>
 <body>
@@ -202,6 +203,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <label>ย้ายไปเครื่องอื่น / สำรอง</label>
   <div class="row">
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
+    <button id="cQr">แสดง QR</button>
     <button id="cImp">ใส่รหัสย้ายเครื่อง</button>
   </div>
   <div class="row" style="margin-top:8px">
@@ -218,6 +220,17 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <input type="text" id="dvName" maxlength="30" autocomplete="off">
   <div class="note">1 อุปกรณ์ = 1 การ์ด มีกุญแจบอร์ดและ pin ของตัวเอง — กด 🔌 ขณะเลือกอุปกรณ์นั้นเพื่อคัดลอกโค้ดไปใส่บอร์ดตัวนั้น</div>
   <div class="actions"><button id="dvDel" class="danger">ลบอุปกรณ์</button><button id="dvClose">ยกเลิก</button><button id="dvSave" class="primary">บันทึก</button></div>
+</dialog>
+
+<!-- QR ย้ายเครื่อง -->
+<dialog id="dlgQr">
+  <h2>📱 QR ย้ายไปแอพมือถือ</h2>
+  <label for="qrAll">เนื้อหา</label>
+  <select id="qrAll"><option value="0">เฉพาะอุปกรณ์ที่เปิดอยู่ (QR เล็ก สแกนง่าย)</option><option value="1">ทุกอุปกรณ์</option></select>
+  <div id="qrBox"></div>
+  <div class="warnbox">QR นี้มี<b>กุญแจลับ</b> ใครสแกนได้ก็สั่งบอร์ดได้ อย่าแคปหน้าจอหรือแชร์ที่สาธารณะ</div>
+  <div class="note" id="qrNote">เปิดฟังก์ชันนำเข้าในแอพมือถือแล้วสแกน หรือใช้ปุ่ม "คัดลอกรหัสย้ายเครื่อง" ไปวางแทน</div>
+  <div class="actions"><button id="qrClose" class="primary">ปิด</button></div>
 </dialog>
 
 <!-- ข้อความทั่วไป -->
@@ -872,6 +885,22 @@ $('#cImp').onclick = () => textDlg('วางรหัสย้ายเคร�
     $('#dlgConn').close(); await start(); toast('นำเข้าแล้ว');
   } catch (e) { toast('รหัสไม่ถูกต้อง: ' + e.message); }
 });
+const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((ok, no) => {
+  const e = document.createElement('script'); e.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+  e.onload = ok; e.onerror = () => no(new Error('โหลดตัวสร้าง QR ไม่ได้ (ต้องออนไลน์) — ใช้คัดลอกรหัสย้ายเครื่องแทน')); document.head.append(e);
+});
+function transferCode(all) { return 'nostrdash1.' + b64e({ sk, act: D().id, devs: (all ? root.devs : [D()]).map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) }); }
+async function showQr() {
+  const box = $('#qrBox'), note = $('#qrNote'); box.replaceChildren();
+  try {
+    await loadQr(); const q = qrcode(0, 'L'); q.addData(transferCode($('#qrAll').value === '1')); q.make();
+    box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    note.textContent = 'เปิดฟังก์ชันนำเข้าในแอพมือถือแล้วสแกน หรือใช้ปุ่ม "คัดลอกรหัสย้ายเครื่อง" ไปวางแทน';
+  } catch (e) { note.textContent = /overflow/i.test(e.message) ? 'ข้อมูลยาวเกินกว่าจะใส่ใน QR — เลือก "เฉพาะอุปกรณ์ที่เปิดอยู่" หรือใช้คัดลอกรหัสแทน' : e.message; }
+}
+$('#cQr').onclick = () => { if (!confirm('QR นี้มีกุญแจลับ ใครสแกนได้ก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return; $('#dlgQr').showModal(); showQr(); };
+$('#qrAll').onchange = showQr;
+$('#qrClose').onclick = () => { $('#qrBox').replaceChildren(); $('#dlgQr').close(); };
 $('#cRegen').onclick = async () => {
   if (!confirm('สร้างกุญแจใหม่ของ "' + D().name + '" ? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดตัวนี้แล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
   D().bsk = NL.genSecret(); saveCfg();

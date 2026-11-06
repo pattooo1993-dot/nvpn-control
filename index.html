@@ -114,17 +114,31 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 .ml.dim .mx{color:var(--muted)}
 .ml.cmd .mx{font-weight:600}
 .monempty{color:var(--muted);padding:8px 0}
+.top{position:sticky;top:0;z-index:5}.top header{position:static}
+#tabs{display:none;gap:6px;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
+#tabs.show{display:flex}
+#tabs button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 14px;white-space:nowrap}
+#tabs button.act{background:var(--accent);border-color:var(--accent);color:#fff}
+#tabs .dot{width:8px;height:8px}
+.card.dev{grid-column:1/-1;padding:0;gap:0}
+.devhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.devhead b{flex:1;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.devbody{padding:12px}
 </style>
 </head>
 <body>
+<div class="top">
 <header>
   <h1>NostrDash <span class="sub" id="boardName"></span></h1>
   <span class="pill" title="สถานะบอร์ด"><span class="dot" id="dBoard"></span><span id="tBoard">รอบอร์ด</span></span>
   <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ (กำหนดไว้ให้แล้ว)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
+  <button class="icon add" id="bDev" title="เพิ่มอุปกรณ์ (การ์ดใหม่)">📟＋</button>
   <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
   <button class="icon" id="bConn" title="โค้ดเชื่อมบอร์ด">🔌</button>
   <button class="icon" id="bEdit" title="จัดเรียง/แก้ไข/ลบ">✏️</button>
 </header>
+<nav id="tabs" aria-label="อุปกรณ์"></nav>
+</div>
 
 <main>
   <div class="grid" id="grid"></div>
@@ -191,10 +205,19 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
     <button id="cImp">ใส่รหัสย้ายเครื่อง</button>
   </div>
   <div class="row" style="margin-top:8px">
-    <button id="cRegen" class="danger">สร้างกุญแจใหม่ทั้งหมด</button>
+    <button id="cRegen" class="danger">สร้างกุญแจใหม่ (อุปกรณ์นี้)</button>
     <button id="cClr">ล้างกราฟ</button>
   </div>
   <div class="actions"><button id="cClose" class="primary">ปิด</button></div>
+</dialog>
+
+<!-- อุปกรณ์ -->
+<dialog id="dlgDev">
+  <h2 id="dvTitle">อุปกรณ์</h2>
+  <label for="dvName">ชื่ออุปกรณ์ (เช่น ห้องนอน, โรงรถ, สวน)</label>
+  <input type="text" id="dvName" maxlength="30" autocomplete="off">
+  <div class="note">1 อุปกรณ์ = 1 การ์ด มีกุญแจบอร์ดและ pin ของตัวเอง — กด 🔌 ขณะเลือกอุปกรณ์นั้นเพื่อคัดลอกโค้ดไปใส่บอร์ดตัวนั้น</div>
+  <div class="actions"><button id="dvDel" class="danger">ลบอุปกรณ์</button><button id="dvClose">ยกเลิก</button><button id="dvSave" class="primary">บันทึก</button></div>
 </dialog>
 
 <!-- ข้อความทั่วไป -->
@@ -251,10 +274,13 @@ const store = {
 for (const k of ['cfg', 'sk', 'hist']) { try { if (localStorage.getItem('nostrdash.' + k) == null && localStorage.getItem('nvpn.' + k) != null) localStorage.setItem('nostrdash.' + k, localStorage.getItem('nvpn.' + k)); } catch (_) {} }
 
 // ---------- สถานะ ----------
-let cfg = store.get('nostrdash.cfg', null);        // {v:2, bsk, widgets[]}
+let root = store.get('nostrdash.cfg', null);
+const D = () => root.devs.find(d => d.id === root.act) || root.devs[0];
+const cfg = { get widgets() { return D().widgets; }, set widgets(v) { D().widgets = v; }, get bsk() { return D().bsk; } };
+const pks = () => root.devs.map(d => d.pk);        // {v:2, bsk, widgets[]}
 let sk = store.get('nostrdash.sk', null);          // กุญแจของหน้าเว็บ (ผู้สั่ง)
 let mePk = null, boardPk = null;
-const ds = {};
+const ds = new Proxy({}, { get: (_, k) => D().ds[k], set: (_, k, v) => { D().ds[k] = v; return true; } });
 let hist = store.get('nostrdash.hist', {});
 let lastStatusAt = 0;
 const seen = new Set();
@@ -350,8 +376,9 @@ function cmdRelayOk(eventId, host, accepted, why) {
   (accepted ? r.relayOk : r.relayNo).push(accepted ? host : host + (why ? ' (' + String(why).slice(0, 40) + ')' : ''));
   renderCmd(r);
 }
-function cmdStatusCheck(flat, t) {      // ใช้เฉพาะค่าจากสถานะจริงของบอร์ดครั้งนี้ (ไม่ใช่ค่าที่หน้าเว็บเดาไว้)
+function cmdStatusCheck(flat, t, dev) {      // ใช้เฉพาะค่าจากสถานะจริงของบอร์ดครั้งนี้ (ไม่ใช่ค่าที่หน้าเว็บเดาไว้)
   for (const r of cmds.values()) {
+    if (r.dev && r.dev !== dev) continue;
     if (r.confirmed || (r.replied && r.ok === false) || t - r.t > 20000) continue;
     if (r.cmd === 'status') { r.confirmed = true; r.confMs = t - r.t; r.timedOut = false; renderCmd(r); continue; }
     if (r.cmd !== 'vw' || !(r.pin in flat)) continue;
@@ -359,11 +386,11 @@ function cmdStatusCheck(flat, t) {      // ใช้เฉพาะค่าจ�
   }
 }
 let boardOn = null, lastBadSig = 0;
-function monBoardState(on) {
-  if (boardOn === on) return;
-  boardOn = on;
-  if (on) monAdd('ok', '● บอร์ดออนไลน์ — ได้รับสถานะ (ลายเซ็นถูกต้อง)');
-  else monAdd('warn', '○ ไม่ได้รับสถานะจากบอร์ดเกิน ' + (ONLINE_MS / 1000) + ' วินาที → ออฟไลน์');
+function monBoardState(d, on) {
+  if (d.on === on) return;
+  d.on = on; const nm = root.devs.length > 1 ? '[' + d.name + '] ' : '';
+  if (on) monAdd('ok', nm + '● บอร์ดออนไลน์ — ได้รับสถานะ (ลายเซ็นถูกต้อง)');
+  else monAdd('warn', nm + '○ ไม่ได้รับสถานะจากบอร์ดเกิน ' + (ONLINE_MS / 1000) + ' วินาที → ออฟไลน์');
 }
 
 function h(tag, attrs, ...kids) {
@@ -389,7 +416,7 @@ const fmt = (n) => {
 };
 const num = (v) => typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : NaN);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-const saveCfg = () => store.set('nostrdash.cfg', cfg);
+const saveCfg = () => store.set('nostrdash.cfg', { v: 3, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) });
 
 // ---------- widget model ----------
 const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ' };
@@ -413,11 +440,20 @@ function nextPin() {
 }
 
 // ---------- กุญแจ (สร้างให้อัตโนมัติ) ----------
+function initDev(d) { d.pk = NL.pubFromSecret(d.bsk); d.ds = {}; d.last = 0; d.on = null; d.up = ''; return d; }
 function ensureKeys() {
   if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nostrdash.sk', sk); }
-  if (!cfg || cfg.v !== 2 || !isHex64(cfg.bsk)) cfg = { v: 2, bsk: NL.genSecret(), widgets: [] };
-  cfg.widgets = (cfg.widgets || []).map(sanitizeWidget).filter(Boolean);
-  mePk = NL.pubFromSecret(sk); boardPk = NL.pubFromSecret(cfg.bsk);
+  if (!root || typeof root !== 'object') root = { v: 3, devs: [] };
+  if (!root.devs && isHex64(root.bsk)) root = { v: 3, devs: [{ name: 'อุปกรณ์ 1', bsk: root.bsk, widgets: root.widgets }] };   // ย้ายข้อมูลจากรุ่นเดิม (1 บอร์ด)
+  root.devs = (root.devs || []).filter(d => d && isHex64(d.bsk)).slice(0, 20);
+  if (!root.devs.length) root.devs.push({ name: 'อุปกรณ์ 1', bsk: NL.genSecret(), widgets: [] });
+  for (const d of root.devs) {
+    d.id = typeof d.id === 'string' && d.id ? d.id.slice(0, 20) : uid(); d.name = String(d.name || 'อุปกรณ์').slice(0, 30);
+    d.widgets = (d.widgets || []).map(sanitizeWidget).filter(Boolean); initDev(d);
+  }
+  if (!root.devs.some(d => d.id === root.act)) root.act = root.devs[0].id;
+  for (const k of Object.keys(hist)) if (!k.includes(':')) { hist[root.devs[0].id + ':' + k] = hist[k]; delete hist[k]; }
+  mePk = NL.pubFromSecret(sk);
   saveCfg();
 }
 
@@ -436,8 +472,8 @@ class Relay {
   sub() {
     if (!this.open) return;
     this.ws.send(JSON.stringify(['REQ', 'nostrdash',
-      { kinds: [K_STATUS], authors: [boardPk], since: now() - 120 },
-      { kinds: [K_REPLY], authors: [boardPk], '#p': [mePk], since: now() - 120 }]));
+      { kinds: [K_STATUS], authors: pks(), since: now() - 120 },
+      { kinds: [K_REPLY], authors: pks(), '#p': [mePk], since: now() - 120 }]));
   }
   retry() { if (this.dead) return; const d = Math.min(30000, 1000 * 2 ** Math.min(this.tries++, 5)); setTimeout(() => this.connect(), d); }
   send(obj) { if (this.open) { this.ws.send(JSON.stringify(obj)); return true; } return false; }
@@ -465,12 +501,12 @@ function broadcast(ev) { let n = 0; for (const r of relays) if (r.send(['EVENT',
 // ---------- รับอีเวนต์ ----------
 function onEvent(ev, url) {
   if (!ev || typeof ev.id !== 'string' || seen.has(ev.id)) return;
-  if (ev.pubkey !== boardPk) return;
+  const dev = root.devs.find(d => d.pk === ev.pubkey); if (!dev) return;
   if (!NL.verifyEvent(ev)) { log('✗ ลายเซ็น/ไอดีไม่ถูกต้อง จาก', url); if (Date.now() - lastBadSig > 10000) { lastBadSig = Date.now(); monAdd('bad', '✗ ทิ้งอีเวนต์ที่อ้างว่ามาจากบอร์ดแต่ลายเซ็นไม่ถูกต้อง (' + url.replace(/^wss?:\/\//i, '') + ')'); } return; }
   seen.add(ev.id); if (seen.size > 600) seen.delete(seen.values().next().value);
   if (Math.abs(now() - ev.created_at) > MAX_SKEW) { log('ทิ้งอีเวนต์เวลาเพี้ยน', String(ev.created_at - now()) + 's'); return; }
   let body; try { body = JSON.parse(ev.content); } catch (_) { body = { text: String(ev.content).slice(0, 200) }; }
-  if (ev.kind === K_STATUS) onStatus(body, ev); else if (ev.kind === K_REPLY) onReply(body, ev);
+  if (ev.kind === K_STATUS) onStatus(body, ev, dev); else if (ev.kind === K_REPLY) onReply(body, ev);
 }
 function flatten(o, prefix, out) {
   for (const [k, v] of Object.entries(o)) {
@@ -480,24 +516,22 @@ function flatten(o, prefix, out) {
   }
   return out;
 }
-function onStatus(body, ev) {
-  lastStatusAt = Date.now();
-  const nameTag = (ev.tags || []).find(t => t[0] === 'name');
-  if (nameTag && nameTag[1]) $('#boardName').textContent = '· ' + String(nameTag[1]).slice(0, 40);
+function onStatus(body, ev, dev) {
+  dev.last = Date.now(); const ds = dev.ds;
   if (!body || typeof body !== 'object') return;
   const flat = flatten(body, '', {}); const t = Date.now(); const changed = [];
   const ctlChanged = [];
   for (const [k, v] of Object.entries(flat)) {
     const old = ds[k];
-    if (old && old.v !== v && cfg.widgets.some(w => w.key === k && isControl(w.type))) ctlChanged.push(k + ' = ' + fmt(num(v)));
+    if (old && old.v !== v && dev.widgets.some(w => w.key === k && isControl(w.type))) ctlChanged.push(k + ' = ' + fmt(num(v)));
     ds[k] = { v, ts: t };
     const n = num(v);
-    if (isFinite(n)) { const a = hist[k] || (hist[k] = []); a.push([t, n]); if (a.length > HIST_MAX) a.splice(0, a.length - HIST_MAX); }
+    if (isFinite(n)) { const hk = dev.id + ':' + k, a = hist[hk] || (hist[hk] = []); a.push([t, n]); if (a.length > HIST_MAX) a.splice(0, a.length - HIST_MAX); }
     changed.push(k);
   }
-  for (const w of cfg.widgets) if (changed.includes(w.key)) clearPending(w.id);
-  widgetEls.forEach(x => x.update());
-  updBoard(); cmdStatusCheck(flat, t);
+  for (const w of dev.widgets) if (changed.includes(w.key) && dev === D()) clearPending(w.id);
+  if (dev === D()) widgetEls.forEach(x => x.update());
+  updBoard(); cmdStatusCheck(flat, t, dev);
   if (ctlChanged.length && !Array.from(cmds.values()).some(r => r.confirmed && t - (r.t + r.confMs) < 1500)) monAdd('info', '← สถานะจากบอร์ดเปลี่ยน: ' + ctlChanged.map(x => { const [k, v] = x.split(' = '); return pinName(k) + ' = ' + v; }).join(', '));
 }
 function onReply(body, ev) {
@@ -512,21 +546,22 @@ function onReply(body, ev) {
   }
 }
 function updBoard() {
-  const age = Date.now() - lastStatusAt, on = lastStatusAt && age < ONLINE_MS;
-  $('#dBoard').className = 'dot ' + (!lastStatusAt ? '' : on ? 'on' : 'off');
-  $('#tBoard').textContent = !lastStatusAt ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
-  for (const w of cfg.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', !on || !ds[w.key]); }
-  if (lastStatusAt) monBoardState(!!on);
+  for (const d of root.devs) { const on = d.last && Date.now() - d.last < ONLINE_MS; d.up = !d.last ? '' : on ? 'on' : 'off'; if (d.last) monBoardState(d, !!on); }
+  const dv = D(), age = Date.now() - dv.last, on = dv.up === 'on';
+  $('#dBoard').className = 'dot ' + dv.up;
+  $('#tBoard').textContent = !dv.last ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
+  for (const w of dv.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', !on || !dv.ds[w.key]); }
+  document.querySelectorAll('#tabs .dot').forEach(e => { const d = root.devs.find(q => q.id === e.dataset.id); e.className = 'dot ' + (d ? d.up : ''); });
 }
 
 // ---------- ส่งคำสั่ง ----------
-async function sendCmd(obj, label, onDone) {
-  const base = { kind: K_CMD, created_at: now(), tags: [['p', boardPk]], content: JSON.stringify(obj) };
+async function sendCmd(obj, label, onDone, dev = D()) {
+  const base = { kind: K_CMD, created_at: now(), tags: [['p', dev.pk]], content: JSON.stringify(obj) };
   const ev = NL.signEvent(base, sk);
   const n = broadcast(ev);
   if (!n) { toast('ยังไม่ได้เชื่อมต่อรีเลย์ ลองใหม่อีกครั้ง'); return null; }
   pending.set(ev.id, { t: Date.now(), label, onDone });
-  trackCmd(ev, obj);
+  trackCmd(ev, obj); { const r = cmds.get(ev.id); if (r) r.dev = dev; }
   setTimeout(() => pending.delete(ev.id), 15000);
   log('→ ส่ง', base.content, '(' + n + ' รีเลย์)');
   return ev.id;
@@ -535,15 +570,16 @@ let lastStatusReq = 0;
 function requestStatus() {
   if (Date.now() - lastStatusReq < 8000) return;
   lastStatusReq = Date.now();
-  setTimeout(() => sendCmd({ cmd: 'status' }, 'status'), 400);
+  setTimeout(() => root.devs.forEach(d => sendCmd({ cmd: 'status' }, 'status', null, d)), 400);
 }
 async function sendW(w, value) {
   setPending(w.id);
+  const dv = D();
   const id = await sendCmd({ cmd: 'vw', pin: w.key, arg: value }, 'w', (body) => {
     clearPending(w.id);
-    if (!body || body.ok !== false) ds[w.key] = { v: value, ts: Date.now() };
+    if (!body || body.ok !== false) dv.ds[w.key] = { v: value, ts: Date.now() };
     const x = widgetEls.get(w.id); if (x) x.update();
-  });
+  }, dv);
   if (!id) clearPending(w.id);
   return id;
 }
@@ -659,7 +695,7 @@ function mkChart(w) {
     const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
     const cs = getComputedStyle(document.documentElement), col = (n) => cs.getPropertyValue(n).trim() || '#888';
     const nowMs = Date.now(), span = (w.range || 0) * 1000;
-    const pts = (hist[w.key] || []).filter(p => !span || p[0] >= nowMs - span);
+    const pts = (hist[D().id + ':' + w.key] || []).filter(p => !span || p[0] >= nowMs - span);
     const rl = RANGES.find(r => r[0] === (w.range || 0))[1];
     sub.textContent = pts.length ? rl + ' · ' + pts.length + ' จุด · แตะเพื่อเปลี่ยนช่วง' : 'ยังไม่มีข้อมูล (เก็บเมื่อเปิดหน้านี้ไว้และบอร์ดส่งค่า)';
     if (pts.length < 1) return;
@@ -680,21 +716,58 @@ function mkChart(w) {
 }
 const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart };
 
+function renderTabs() {
+  const t = $('#tabs'); t.replaceChildren(); t.classList.toggle('show', root.devs.length > 1);
+  for (const d of root.devs) t.append(h('button', { class: d.id === root.act ? 'act' : '', title: d.name, onclick: () => { if (root.act === d.id) return; root.act = d.id; saveCfg(); renderAll(); } },
+    h('span', { class: 'dot ' + d.up, 'data-id': d.id }), d.name));
+}
 function renderAll() {
-  const g = $('#grid'); g.replaceChildren(); widgetEls.clear();
-  for (const w of cfg.widgets) { const x = MK[w.type](w); widgetEls.set(w.id, x); g.append(x.el); x.update(); }
-  if (!cfg.widgets.length) {
-    g.append(h('div', { class: 'hero' },
+  const dv = D(), g = $('#grid'); g.replaceChildren(); widgetEls.clear();
+  const inner = h('div', { class: 'grid devbody' });
+  g.append(h('div', { class: 'card dev' },
+    h('div', { class: 'devhead' }, h('span', { text: '📟' }), h('b', { text: dv.name }), h('button', { text: 'ตั้งชื่อ / ลบ', onclick: () => openDevDlg(dv) })), inner));
+  for (const w of dv.widgets) { const x = MK[w.type](w); widgetEls.set(w.id, x); inner.append(x.el); x.update(); }
+  if (!dv.widgets.length) {
+    inner.append(h('div', { class: 'hero' },
       h('h2', { text: 'เริ่มต้นใช้งาน' }),
       h('ol', null,
         h('li', { text: 'กด ＋ สร้างสวิตช์ / ช่องแสดงค่าที่ต้องการ' }),
         h('li', { text: 'กด 🔌 คัดลอกโค้ดเชื่อมบอร์ดไปใส่ในสเก็ตช์' }),
-        h('li', { text: 'อัปโหลดเข้าบอร์ด แล้วหน้านี้จะออนไลน์เอง' })),
+        h('li', { text: 'อัปโหลดเข้าบอร์ด แล้วการ์ดนี้จะออนไลน์เอง' })),
       h('div', null, h('button', { class: 'primary', text: '＋ เพิ่ม widget', onclick: () => openWidgetDlg(null) }))));
   }
-  g.append(h('div', { class: 'card addcard', onclick: () => openWidgetDlg(null) }, h('div', { class: 'big', text: '＋' }), h('div', { text: 'เพิ่ม widget' })));
-  updBoard();
+  inner.append(h('div', { class: 'card addcard', onclick: () => openWidgetDlg(null) }, h('div', { class: 'big', text: '＋' }), h('div', { text: 'เพิ่ม widget' })));
+  $('#boardName').textContent = root.devs.length > 1 ? '· ' + dv.name : '';
+  renderTabs(); updBoard();
 }
+
+// ---------- อุปกรณ์ (1 อุปกรณ์ = 1 การ์ด) ----------
+let editingD = null;
+function openDevDlg(d) {
+  editingD = d; $('#dvTitle').textContent = d ? 'ตั้งชื่ออุปกรณ์' : 'เพิ่มอุปกรณ์';
+  $('#dvName').value = d ? d.name : 'อุปกรณ์ ' + (root.devs.length + 1);
+  $('#dvDel').style.display = d && root.devs.length > 1 ? '' : 'none';
+  $('#dlgDev').showModal(); $('#dvName').select();
+}
+$('#bDev').onclick = () => openDevDlg(null);
+$('#dvClose').onclick = () => $('#dlgDev').close();
+$('#dvSave').onclick = () => {
+  const name = $('#dvName').value.trim().slice(0, 30) || 'อุปกรณ์';
+  if (editingD) editingD.name = name;
+  else {
+    if (root.devs.length >= 20) { toast('เพิ่มได้สูงสุด 20 อุปกรณ์'); return; }
+    const d = initDev({ id: uid(), name, bsk: NL.genSecret(), widgets: [] });
+    root.devs.push(d); root.act = d.id; relays.forEach(r => r.sub()); requestStatus();
+    toast('เพิ่มแล้ว — เพิ่ม widget แล้วกด 🔌 เพื่อคัดลอกโค้ดของอุปกรณ์นี้', 4000);
+  }
+  saveCfg(); $('#dlgDev').close(); renderAll();
+};
+$('#dvDel').onclick = () => {
+  if (!editingD || root.devs.length < 2 || !confirm('ลบอุปกรณ์ "' + editingD.name + '" พร้อม widget ทั้งหมด?')) return;
+  for (const k of Object.keys(hist)) if (k.startsWith(editingD.id + ':')) delete hist[k];
+  root.devs = root.devs.filter(d => d !== editingD); root.act = root.devs[0].id;
+  relays.forEach(r => r.sub()); saveCfg(); $('#dlgDev').close(); renderAll();
+};
 
 // ---------- เพิ่ม/แก้ widget ----------
 let editingW = null;
@@ -735,6 +808,7 @@ function genCode() {
   L.push('#include <NostrDash.h>');
   L.push('');
   L.push('// ===== จากหน้าเว็บ NostrDash — ห้ามอัปโหลดขึ้น GitHub =====');
+  L.push('// อุปกรณ์: ' + D().name);
   L.push('#define NOSTRDASH_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
   L.push('#define NOSTRDASH_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
   L.push('#define NOSTRDASH_RELAYS       "' + RELAYS.map(u => u.replace(/^wss?:\/\//i, '')).join(',') + '"');
@@ -787,19 +861,20 @@ function textDlg(title, text, readonly, ok) {
 }
 $('#cExp').onclick = () => {
   if (!confirm('รหัสนี้มีกุญแจลับ ใครได้ไปก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return;
-  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrdash1.' + b64e({ bsk: cfg.bsk, sk, widgets: cfg.widgets }), true);
+  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrdash1.' + b64e({ sk, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) }), true);
 };
 $('#cImp').onclick = () => textDlg('วางรหัสย้ายเครื่อง', '', false, async (v) => {
   try {
     const j = b64d(String(v).trim().replace(/^(nostrdash1|nvpn1)\./, ''));
-    if (!isHex64(j.bsk) || !isHex64(j.sk)) throw new Error('กุญแจไม่ถูกต้อง');
-    cfg = { v: 2, bsk: j.bsk, widgets: j.widgets || [] }; sk = j.sk; store.set('nostrdash.sk', sk);
+    const list = Array.isArray(j.devs) ? j.devs : [{ name: 'อุปกรณ์ 1', bsk: j.bsk, widgets: j.widgets }];
+    if (!isHex64(j.sk) || !list.length || !list.every(d => d && isHex64(d.bsk))) throw new Error('กุญแจไม่ถูกต้อง');
+    root = { v: 3, devs: list, act: j.act }; sk = j.sk; store.set('nostrdash.sk', sk);
     $('#dlgConn').close(); await start(); toast('นำเข้าแล้ว');
   } catch (e) { toast('รหัสไม่ถูกต้อง: ' + e.message); }
 });
 $('#cRegen').onclick = async () => {
-  if (!confirm('สร้างกุญแจใหม่ทั้งหมด? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดแล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
-  sk = NL.genSecret(); store.set('nostrdash.sk', sk); cfg.bsk = NL.genSecret(); saveCfg();
+  if (!confirm('สร้างกุญแจใหม่ของ "' + D().name + '" ? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดตัวนี้แล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
+  D().bsk = NL.genSecret(); saveCfg();
   $('#dlgConn').close(); await start(); openConn();
 };
 $('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nostrdash.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
@@ -812,7 +887,6 @@ $('#bLog').onclick = (e) => { e.preventDefault(); $('#log').classList.toggle('sh
 // ---------- เริ่มต้น ----------
 async function start() {
   relays.splice(0).forEach(r => r.close());
-  lastStatusAt = 0; for (const k of Object.keys(ds)) delete ds[k];
   ensureKeys(); renderAll(); connectAll();
 }
 setInterval(updBoard, 1000);
@@ -820,7 +894,7 @@ setInterval(() => store.set('nostrdash.hist', hist), 20000);
 window.addEventListener('pagehide', () => store.set('nostrdash.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
-start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => boardPk }; });
+start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk }; });
 })();
 </script>
 </body>

@@ -125,6 +125,9 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 .devhead b{flex:1;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .devbody{padding:12px}
 #qrBox{background:#fff;padding:12px;border-radius:10px;max-width:320px;margin:10px auto}#qrBox:empty{display:none}#qrBox svg{display:block;width:100%;height:auto}
+#scanBox{position:relative;background:#000;border-radius:10px;overflow:hidden;max-width:420px;aspect-ratio:1;margin:10px auto}
+#scanBox video{width:100%;height:100%;object-fit:cover;display:block}
+#scanBox::after{content:"";position:absolute;inset:16%;border:3px solid #fff9;border-radius:14px;pointer-events:none}
 </style>
 </head>
 <body>
@@ -134,6 +137,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <span class="pill" title="สถานะบอร์ด"><span class="dot" id="dBoard"></span><span id="tBoard">รอบอร์ด</span></span>
   <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ (กำหนดไว้ให้แล้ว)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
   <button class="icon add" id="bDev" title="เพิ่มอุปกรณ์ (การ์ดใหม่)">📟＋</button>
+  <button class="icon add" id="bScan" title="สแกน QR เพิ่มอุปกรณ์">📷</button>
   <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
   <button class="icon" id="bConn" title="โค้ดเชื่อมบอร์ด">🔌</button>
   <button class="icon" id="bEdit" title="จัดเรียง/แก้ไข/ลบ">✏️</button>
@@ -205,6 +209,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
     <button id="cQr">แสดง QR</button>
     <button id="cImp">ใส่รหัสย้ายเครื่อง</button>
+    <button id="cScan">📷 สแกน QR</button>
   </div>
   <div class="row" style="margin-top:8px">
     <button id="cRegen" class="danger">สร้างกุญแจใหม่ (อุปกรณ์นี้)</button>
@@ -218,6 +223,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <h2 id="dvTitle">อุปกรณ์</h2>
   <label for="dvName">ชื่ออุปกรณ์ (เช่น ห้องนอน, โรงรถ, สวน)</label>
   <input type="text" id="dvName" maxlength="30" autocomplete="off">
+  <div class="row" id="dvScanRow" style="margin-top:10px"><button id="dvScan">📷 สแกน QR จากเครื่องอื่นแทน</button></div>
   <div class="note">1 อุปกรณ์ = 1 การ์ด มีกุญแจบอร์ดและ pin ของตัวเอง — กด 🔌 ขณะเลือกอุปกรณ์นั้นเพื่อคัดลอกโค้ดไปใส่บอร์ดตัวนั้น</div>
   <div class="actions"><button id="dvDel" class="danger">ลบอุปกรณ์</button><button id="dvClose">ยกเลิก</button><button id="dvSave" class="primary">บันทึก</button></div>
 </dialog>
@@ -231,6 +237,17 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <div class="warnbox">QR นี้มี<b>กุญแจลับ</b> ใครสแกนได้ก็สั่งบอร์ดได้ อย่าแคปหน้าจอหรือแชร์ที่สาธารณะ</div>
   <div class="note" id="qrNote">เปิดฟังก์ชันนำเข้าในแอพมือถือแล้วสแกน หรือใช้ปุ่ม "คัดลอกรหัสย้ายเครื่อง" ไปวางแทน</div>
   <div class="actions"><button id="qrClose" class="primary">ปิด</button></div>
+</dialog>
+
+<!-- สแกน QR -->
+<dialog id="dlgScan">
+  <h2>📷 สแกน QR เพิ่มอุปกรณ์</h2>
+  <div id="scanBox"><video id="scanVid" playsinline muted></video></div>
+  <div class="note" id="scanNote">เล็งกล้องไปที่ QR ที่ได้จาก 🔌 → "แสดง QR" ในเครื่องต้นทาง</div>
+  <input type="file" id="scanImg" accept="image/*" hidden>
+  <div class="row" style="margin-top:8px"><button id="scanFile">🖼️ เลือกรูป QR จากเครื่อง</button></div>
+  <div class="warnbox">QR มี<b>กุญแจลับ</b> สแกนแล้วเครื่องนี้จะสั่งบอร์ดเหล่านั้นได้ ใช้เฉพาะ QR ที่คุณสร้างเอง</div>
+  <div class="actions"><button id="scanClose" class="primary">ปิด</button></div>
 </dialog>
 
 <!-- ข้อความทั่วไป -->
@@ -759,7 +776,7 @@ let editingD = null;
 function openDevDlg(d) {
   editingD = d; $('#dvTitle').textContent = d ? 'ตั้งชื่ออุปกรณ์' : 'เพิ่มอุปกรณ์';
   $('#dvName').value = d ? d.name : 'อุปกรณ์ ' + (root.devs.length + 1);
-  $('#dvDel').style.display = d && root.devs.length > 1 ? '' : 'none';
+  $('#dvDel').style.display = d && root.devs.length > 1 ? '' : 'none'; $('#dvScanRow').style.display = d ? 'none' : '';
   $('#dlgDev').showModal(); $('#dvName').select();
 }
 $('#bDev').onclick = () => openDevDlg(null);
@@ -901,6 +918,98 @@ async function showQr() {
 $('#cQr').onclick = () => { if (!confirm('QR นี้มีกุญแจลับ ใครสแกนได้ก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return; $('#dlgQr').showModal(); showQr(); };
 $('#qrAll').onchange = showQr;
 $('#qrClose').onclick = () => { $('#qrBox').replaceChildren(); $('#dlgQr').close(); };
+
+// ---------- สแกน QR เพิ่มอุปกรณ์ ----------
+let scanStream = null, scanTimer = 0, scanBusy = false, scanDet = null;
+const loadJsQr = () => window.jsQR ? Promise.resolve() : new Promise((ok, no) => {
+  const e = document.createElement('script'); e.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+  e.onload = ok; e.onerror = () => no(new Error('โหลดตัวอ่าน QR ไม่ได้ (ต้องออนไลน์)')); document.head.append(e);
+});
+function stopScan() {
+  clearInterval(scanTimer); scanTimer = 0;
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  $('#scanVid').srcObject = null;
+}
+async function decodeQr(src, w, hgt) {
+  if (window.BarcodeDetector) {
+    try { scanDet = scanDet || new BarcodeDetector({ formats: ['qr_code'] }); const r = await scanDet.detect(src); if (r.length) return r[0].rawValue; return null; } catch (_) { /* ใช้ jsQR แทน */ }
+  }
+  await loadJsQr();
+  const c = document.createElement('canvas'); c.width = w; c.height = hgt;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(src, 0, 0, w, hgt);
+  const r = jsQR(x.getImageData(0, 0, w, hgt).data, w, hgt, { inversionAttempts: 'attemptBoth' });
+  return r ? r.data : null;
+}
+async function openScan() {
+  for (const id of ['#dlgDev', '#dlgConn']) if ($(id).open) $(id).close();
+  $('#dlgScan').showModal(); $('#scanBox').style.display = '';
+  const note = $('#scanNote'); note.textContent = 'กำลังเปิดกล้อง…';
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('เบราว์เซอร์นี้เปิดกล้องไม่ได้ (ต้องใช้ผ่าน https) — ใช้ "เลือกรูป QR" แทน');
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    const v = $('#scanVid'); v.srcObject = scanStream; await v.play();
+    note.textContent = 'เล็งกล้องไปที่ QR ให้อยู่ในกรอบ';
+    if (!window.BarcodeDetector) loadJsQr().catch(e => { note.textContent = e.message; });
+    scanTimer = setInterval(async () => {
+      if (scanBusy || !v.videoWidth) return; scanBusy = true;
+      try {
+        const k = Math.min(1, 640 / v.videoWidth);
+        const txt = await decodeQr(v, Math.round(v.videoWidth * k), Math.round(v.videoHeight * k));
+        if (txt && /^(nostrdash1|nvpn1)\./.test(txt.trim())) { stopScan(); await importScanned(txt.trim()); }
+        else if (txt) note.textContent = 'นี่ไม่ใช่ QR ของ NostrDash — ลองใหม่';
+      } catch (e) { note.textContent = e.message; }
+      scanBusy = false;
+    }, 250);
+  } catch (e) {
+    note.textContent = (e && e.name === 'NotAllowedError' ? 'ไม่ได้รับอนุญาตใช้กล้อง — เปิดสิทธิ์กล้องในเบราว์เซอร์ หรือใช้ "เลือกรูป QR" แทน' : (e.message || 'เปิดกล้องไม่ได้'));
+    $('#scanBox').style.display = 'none';
+  }
+}
+function closeScan() { stopScan(); if ($('#dlgScan').open) $('#dlgScan').close(); }
+async function importScanned(code) {
+  let j;
+  try {
+    j = b64d(code.replace(/^(nostrdash1|nvpn1)\./, ''));
+    const list = Array.isArray(j.devs) ? j.devs : [{ name: 'อุปกรณ์ 1', bsk: j.bsk, widgets: j.widgets }];
+    if (!isHex64(j.sk) || !list.length || !list.every(d => d && isHex64(d.bsk))) throw new Error('กุญแจไม่ถูกต้อง');
+    j.devs = list;
+  } catch (e) { toast('QR ไม่ถูกต้อง: ' + e.message); closeScan(); return; }
+  const names = j.devs.map(d => String(d.name || 'อุปกรณ์').slice(0, 30)).join(', ');
+  const diffKey = j.sk !== sk;
+  const msg = 'พบ ' + j.devs.length + ' อุปกรณ์: ' + names + '\nเพิ่มเข้าเครื่องนี้? (อุปกรณ์เดิมไม่ถูกลบ)' +
+    (diffKey ? '\n\n⚠️ กุญแจหน้าเว็บจะเปลี่ยนเป็นของเครื่องต้นทาง อุปกรณ์เดิมที่สร้างบนเครื่องนี้และไม่ได้อยู่ใน QR จะสั่งบอร์ดไม่ได้จนกว่าจะอัปโหลดโค้ดใหม่' : '');
+  if (!confirm(msg)) { closeScan(); return; }
+  let first = null, added = 0, updated = 0;
+  for (const d of j.devs) {
+    const ex = root.devs.find(x => (d.id && x.id === d.id) || x.bsk === d.bsk);
+    if (ex) { ex.name = String(d.name || ex.name).slice(0, 30); ex.widgets = Array.isArray(d.widgets) ? d.widgets : ex.widgets; first = first || ex.id; updated++; }
+    else {
+      if (root.devs.length >= 20) { toast('เพิ่มได้สูงสุด 20 อุปกรณ์'); break; }
+      const nd = { id: (typeof d.id === 'string' && d.id) ? d.id.slice(0, 20) : uid(), name: d.name, bsk: d.bsk, widgets: Array.isArray(d.widgets) ? d.widgets : [] };
+      root.devs.push(nd); first = first || nd.id; added++;
+    }
+  }
+  if (diffKey) { sk = j.sk; store.set('nostrdash.sk', sk); }
+  if (first) root.act = first;
+  closeScan(); await start();
+  toast('สแกนสำเร็จ — เพิ่ม ' + added + (updated ? ', อัปเดต ' + updated : '') + ' อุปกรณ์', 3500);
+}
+$('#bScan').onclick = openScan;
+$('#dvScan').onclick = openScan;
+$('#cScan').onclick = openScan;
+$('#scanClose').onclick = closeScan;
+$('#dlgScan').addEventListener('close', stopScan);
+$('#scanFile').onclick = () => $('#scanImg').click();
+$('#scanImg').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const bmp = await createImageBitmap(f);
+    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const txt = await decodeQr(bmp, Math.round(bmp.width * k), Math.round(bmp.height * k));
+    if (txt && /^(nostrdash1|nvpn1)\./.test(txt.trim())) { stopScan(); await importScanned(txt.trim()); }
+    else $('#scanNote').textContent = txt ? 'นี่ไม่ใช่ QR ของ NostrDash' : 'ไม่พบ QR ในรูปนี้ ลองรูปที่ชัดและเห็น QR ทั้งอัน';
+  } catch (er) { $('#scanNote').textContent = 'อ่านรูปไม่ได้: ' + er.message; }
+};
 $('#cRegen').onclick = async () => {
   if (!confirm('สร้างกุญแจใหม่ของ "' + D().name + '" ? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดตัวนี้แล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
   D().bsk = NL.genSecret(); saveCfg();

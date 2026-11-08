@@ -128,6 +128,21 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 #scanBox{position:relative;background:#000;border-radius:10px;overflow:hidden;max-width:420px;aspect-ratio:1;margin:10px auto}
 #scanBox video{width:100%;height:100%;object-fit:cover;display:block}
 #scanBox::after{content:"";position:absolute;inset:16%;border:3px solid #fff9;border-radius:14px;pointer-events:none}
+.nlist{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:2px 8px;font-size:13px}
+.nrow{padding:5px 0;border-bottom:1px dashed var(--line);word-break:break-word;white-space:pre-wrap}
+.nrow:last-child{border-bottom:0}
+.nrow .nt{color:var(--muted);font:11px ui-monospace,Menlo,Consolas,monospace;margin-right:8px}
+.nrow.new{font-weight:600}
+.nempty{color:var(--muted);padding:8px 0;font-size:12px}
+.ntool{display:flex;gap:6px;flex-wrap:wrap}
+.ntool button{padding:4px 10px;font-size:12px}
+header button{white-space:nowrap}
+@media (max-width:480px){
+  header{gap:4px;padding:8px 6px;flex-wrap:wrap;justify-content:flex-end}
+  header h1{display:none}
+  header .pill{padding:3px 6px;font-size:11px;gap:4px}
+  header button.icon{padding:6px 7px}
+}
 </style>
 </head>
 <body>
@@ -171,6 +186,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
     <option value="value">ตัวเลขค่า — บอร์ดส่งมาแสดง</option>
     <option value="gauge">เกจ — บอร์ดส่งมาแสดง</option>
     <option value="chart">กราฟย้อนหลัง — บอร์ดส่งมาแสดง</option>
+    <option value="notify">แจ้งเตือนข้อความ — บอร์ดส่งข้อความมาเตือน</option>
   </select>
   <label for="wLabel">ชื่อ (เช่น ไฟหน้าบ้าน, อุณหภูมิ)</label>
   <input type="text" id="wLabel" autocomplete="off">
@@ -203,7 +219,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <table class="pins"><thead><tr><th>pin</th><th>widget</th><th>ทิศทาง</th></tr></thead><tbody id="cPins"></tbody></table>
   <label>ตัวอย่างวิธีใช้ในโค้ดบอร์ด</label>
   <textarea id="cUse" readonly spellcheck="false" style="min-height:130px"></textarea>
-  <div class="note">ติดตั้งไลบรารี <code>NostrDash</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที</div>
+  <div class="note">ติดตั้งไลบรารี <code>NostrDash</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที · widget "แจ้งเตือน" ใช้ <code>NostrDash.notify(PIN, "ข้อความ")</code> (ต้องใช้ไลบรารี NostrDash รุ่น 0.2.0 ขึ้นไป)</div>
   <label>ย้ายไปเครื่องอื่น / สำรอง</label>
   <div class="row">
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
@@ -284,7 +300,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 (() => {
 'use strict';
 const NL = window.NostrLite;
-const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080;
+const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080, K_NOTIFY = 21081;
 // รีเลย์กำหนดตายตัวที่นี่ที่เดียว (ผู้ใช้ไม่ต้องรู้) — ทดสอบด้วย ?relay=ws://127.0.0.1:7777 เพื่อชี้ไปรีเลย์อื่น
 const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io', 'wss://relay.primal.net'];
 const qRelay = new URLSearchParams(location.search).get('relay');
@@ -449,7 +465,7 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const saveCfg = () => store.set('nostrdash.cfg', { v: 3, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) });
 
 // ---------- widget model ----------
-const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ' };
+const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ', notify: 'แจ้งเตือน' };
 const isControl = (t) => t === 'switch' || t === 'slider';
 function sanitizeWidget(w) {
   if (!w || typeof w !== 'object' || !TYPES[w.type]) return null;
@@ -502,7 +518,7 @@ class Relay {
   sub() {
     if (!this.open) return;
     this.ws.send(JSON.stringify(['REQ', 'nostrdash',
-      { kinds: [K_STATUS], authors: pks(), since: now() - 120 },
+      { kinds: [K_STATUS, K_NOTIFY], authors: pks(), since: now() - 120 },
       { kinds: [K_REPLY], authors: pks(), '#p': [mePk], since: now() - 120 }]));
   }
   retry() { if (this.dead) return; const d = Math.min(30000, 1000 * 2 ** Math.min(this.tries++, 5)); setTimeout(() => this.connect(), d); }
@@ -536,7 +552,7 @@ function onEvent(ev, url) {
   seen.add(ev.id); if (seen.size > 600) seen.delete(seen.values().next().value);
   if (Math.abs(now() - ev.created_at) > MAX_SKEW) { log('ทิ้งอีเวนต์เวลาเพี้ยน', String(ev.created_at - now()) + 's'); return; }
   let body; try { body = JSON.parse(ev.content); } catch (_) { body = { text: String(ev.content).slice(0, 200) }; }
-  if (ev.kind === K_STATUS) onStatus(body, ev, dev); else if (ev.kind === K_REPLY) onReply(body, ev);
+  if (ev.kind === K_STATUS) onStatus(body, ev, dev); else if (ev.kind === K_REPLY) onReply(body, ev); else if (ev.kind === K_NOTIFY) onNotify(body, ev, dev);
 }
 function flatten(o, prefix, out) {
   for (const [k, v] of Object.entries(o)) {
@@ -580,7 +596,7 @@ function updBoard() {
   const dv = D(), age = Date.now() - dv.last, on = dv.up === 'on';
   $('#dBoard').className = 'dot ' + dv.up;
   $('#tBoard').textContent = !dv.last ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
-  for (const w of dv.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', !on || !dv.ds[w.key]); }
+  for (const w of dv.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', w.type === 'notify' ? false : (!on || !dv.ds[w.key])); }
   document.querySelectorAll('#tabs .dot').forEach(e => { const d = root.devs.find(q => q.id === e.dataset.id); e.className = 'dot ' + (d ? d.up : ''); });
 }
 
@@ -630,7 +646,7 @@ function cardBase(w, ...body) {
     h('button', { class: 'danger', text: 'ลบ', onclick: () => { if (confirm('ลบ "' + w.label + '" ? (' + w.key + ' จะว่างและถูกใช้ซ้ำได้)')) { cfg.widgets = cfg.widgets.filter(x => x.id !== w.id); saveCfg(); renderAll(); } } }),
     h('button', { text: '←', title: 'เลื่อนขึ้น', onclick: () => moveW(w, -1) }),
     h('button', { text: '→', title: 'เลื่อนลง', onclick: () => moveW(w, 1) }));
-  return h('div', { class: 'card' + (w.type === 'chart' ? ' wide' : '') },
+  return h('div', { class: 'card' + (w.type === 'chart' || w.type === 'notify' ? ' wide' : '') },
     h('h3', null, h('span', { text: w.label }), h('span', { class: 'pin', text: w.key })), ...body, tools);
 }
 function moveW(w, d) {
@@ -744,7 +760,69 @@ function mkChart(w) {
   }
   return { el, update };
 }
-const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart };
+// ---------- แจ้งเตือนข้อความ (บอร์ด → หน้าเว็บ, kind 21081) ----------
+const NOTE_MAX = 100;
+let notes = store.get('nostrdash.notes', {});     // { 'devId:Vn': [[เวลา(ms), ข้อความ, id อีเวนต์], ...] }
+const noteKey = (dev, pin) => dev.id + ':' + pin;
+let unread = 0, actx = null;
+const soundOn = () => store.get('nostrdash.snd', true) !== false;
+document.addEventListener('pointerdown', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (_) {} }, { once: true });
+function beep() {
+  if (!soundOn() || !actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain(); o.type = 'sine'; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.25, actx.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.35);
+    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.4);
+  } catch (_) {}
+}
+function onNotify(body, ev, dev) {
+  if (!body || typeof body !== 'object' || typeof body.text !== 'string') return;
+  const pin = /^V\d{1,3}$/.test(String(body.pin)) ? String(body.pin) : 'V0';
+  const text = body.text.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ').slice(0, 300).trim(); if (!text) return;
+  dev.last = Date.now();
+  const k = noteKey(dev, pin), a = notes[k] || (notes[k] = []);
+  if (a.some(x => x[2] === ev.id)) return;                      // ซ้ำ (โหลดหน้าใหม่แล้วรีเลย์ส่งซ้ำ)
+  const t = Date.now(); a.push([t, text, ev.id, 1]); if (a.length > NOTE_MAX) a.splice(0, a.length - NOTE_MAX);
+  store.set('nostrdash.notes', notes);
+  const w = dev.widgets.find(x => x.key === pin), who = (root.devs.length > 1 ? dev.name + ' · ' : '') + (w ? w.label : pin);
+  monAdd('warn', '✉ ' + who + ': ' + text);
+  if (dev === D()) widgetEls.forEach(x => x.update());
+  updBoard(); notifyUser(who, text);
+}
+function notifyUser(who, text) {
+  toast('🔔 ' + who + ': ' + text, 5000);
+  try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch (_) {}
+  beep();
+  if (document.hidden) {
+    unread++; document.title = '(' + unread + ') NostrDash แดชบอร์ด';
+    try { if ('Notification' in window && Notification.permission === 'granted') new Notification('🔔 ' + who, { body: text, tag: 'nostrdash' }); } catch (_) {}   // Android Chrome ไม่รองรับ constructor นี้ — ใช้สั่น/เสียง/ชื่อแท็บแทน
+  }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { unread = 0; document.title = 'NostrDash แดชบอร์ด'; widgetEls.forEach(x => x.update()); } });
+function mkNotify(w) {
+  const list = h('div', { class: 'nlist' }), sub = h('div', { class: 'sub' });
+  const bell = h('button', { text: '🔔 เปิดแจ้งเตือนเบราว์เซอร์', onclick: async () => {
+    try { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'เปิดแจ้งเตือนแล้ว (ใช้ได้ตอนเปิดหน้านี้ค้างไว้)' : 'ไม่ได้รับอนุญาต'); } catch (_) { toast('เบราว์เซอร์นี้ไม่รองรับ'); }
+    update();
+  } });
+  const snd = h('button', { onclick: () => { store.set('nostrdash.snd', !soundOn()); if (soundOn()) beep(); update(); } });
+  const clr = h('button', { text: 'ล้าง', onclick: () => { if (confirm('ล้างข้อความแจ้งเตือนของ "' + w.label + '" ?')) { delete notes[noteKey(D(), w.key)]; store.set('nostrdash.notes', notes); update(); } } });
+  const el = cardBase(w, list, sub, h('div', { class: 'ntool' }, bell, snd, clr));
+  function update() {
+    const a = notes[noteKey(D(), w.key)] || [];
+    list.replaceChildren();
+    if (!a.length) list.append(h('div', { class: 'nempty', text: 'ยังไม่มีข้อความ — บอร์ดใช้ NostrDash.notify(PIN_' + w.key + ', "ข้อความ")' }));
+    for (let i = a.length - 1; i >= 0; i--) {
+      const x = a[i], d = new Date(x[0]), sameDay = d.toDateString() === new Date().toDateString();
+      list.append(h('div', { class: 'nrow' + (x[3] && !document.hidden && Date.now() - x[0] < 60000 ? ' new' : '') }, h('span', { class: 'nt', text: (sameDay ? '' : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ') + d.toLocaleTimeString('th-TH') }), x[1]));
+    }
+    sub.textContent = a.length ? a.length + ' ข้อความ (เก็บในเบราว์เซอร์นี้ ล่าสุดอยู่บนสุด)' : 'ข้อความเก็บเฉพาะตอนเปิดหน้านี้ไว้ — รีเลย์ไม่เก็บอีเวนต์';
+    bell.style.display = 'Notification' in window && Notification.permission === 'default' ? '' : 'none';
+    snd.textContent = soundOn() ? '🔊 เสียง: เปิด' : '🔇 เสียง: ปิด';
+  }
+  return { el, update };
+}
+const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart, notify: mkNotify };
 
 function renderTabs() {
   const t = $('#tabs'); t.replaceChildren(); t.classList.toggle('show', root.devs.length > 1);
@@ -795,6 +873,7 @@ $('#dvSave').onclick = () => {
 $('#dvDel').onclick = () => {
   if (!editingD || root.devs.length < 2 || !confirm('ลบอุปกรณ์ "' + editingD.name + '" พร้อม widget ทั้งหมด?')) return;
   for (const k of Object.keys(hist)) if (k.startsWith(editingD.id + ':')) delete hist[k];
+  for (const k of Object.keys(notes)) if (k.startsWith(editingD.id + ':')) delete notes[k]; store.set('nostrdash.notes', notes);
   root.devs = root.devs.filter(d => d !== editingD); root.act = root.devs[0].id;
   relays.forEach(r => r.sub()); saveCfg(); $('#dlgDev').close(); renderAll();
 };
@@ -803,7 +882,7 @@ $('#dvDel').onclick = () => {
 let editingW = null;
 function wTypeUi() {
   const t = $('#wType').value;
-  $('#wRange').style.display = t === 'switch' ? 'none' : '';
+  $('#wRange').style.display = (t === 'switch' || t === 'notify') ? 'none' : '';
   $('#wStepBox').style.display = t === 'slider' ? '' : 'none';
 }
 function openWidgetDlg(w) {
@@ -846,14 +925,14 @@ function genCode() {
   if (cfg.widgets.length) {
     L.push('// ===== ตำแหน่ง (pin) ของแต่ละ widget =====');
     const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : ' [บอร์ดส่ง]'));
+    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : w.type === 'notify' ? ' [บอร์ดส่งข้อความ]' : ' [บอร์ดส่ง]'));
   } else L.push('// (ยังไม่มี widget — กด ＋ ในหน้าเว็บก่อน)');
   return L.join('\n');
 }
 function genUse() {
   const L = [];
   const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
-  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type)).sort(byPin);
+  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type) && w.type !== 'notify').sort(byPin), no = cfg.widgets.filter(w => w.type === 'notify').sort(byPin);
   L.push('void setup() {');
   for (const w of so) L.push('  NostrDash.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
   for (const w of so) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
@@ -863,6 +942,7 @@ function genUse() {
   L.push('void loop() {');
   L.push('  NostrDash.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ');
   for (const w of oo) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // ใส่ค่าที่อ่านได้: ' + w.label);
+  for (const w of no) L.push('  // เมื่อเกิดเหตุการณ์: NostrDash.notify(PIN_' + w.key + ', "ข้อความ");  // ' + w.label + ' (หรือ notifyf(PIN_' + w.key + ', "อุณหภูมิ %.1f", t))');
   L.push('}');
   return L.join('\n');
 }
@@ -870,7 +950,7 @@ function openConn() {
   $('#cCode').value = genCode(); $('#cUse').value = genUse();
   const tb = $('#cPins'); tb.replaceChildren();
   const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : 'บอร์ดส่งค่า' })));
+  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : w.type === 'notify' ? 'บอร์ดส่งข้อความ' : 'บอร์ดส่งค่า' })));
   if (!sorted.length) tb.append(h('tr', null, h('td', { colspan: '3', text: 'ยังไม่มี widget' })));
   $('#dlgConn').showModal(); $('#cCopy').focus(); $('#cCode').scrollTop = 0;
 }

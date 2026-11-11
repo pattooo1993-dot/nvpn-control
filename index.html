@@ -136,12 +136,6 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 .nempty{color:var(--muted);padding:8px 0;font-size:12px}
 .ntool{display:flex;gap:6px;flex-wrap:wrap}
 .ntool button{padding:4px 10px;font-size:12px}
-.seclist .nrow.out{color:var(--accent)}
-.seclist .nrow .nt{margin-right:6px}
-.sform{display:flex;gap:6px;align-items:flex-end;margin-top:8px}
-.sform textarea{flex:1;min-height:42px;max-height:120px;resize:vertical;font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
-.sform button{padding:10px 14px}
-.sprog{color:var(--warn);font-size:12px;min-height:16px}
 header button{white-space:nowrap}
 @media (max-width:480px){
   header{gap:4px;padding:8px 6px;flex-wrap:wrap;justify-content:flex-end}
@@ -176,7 +170,7 @@ header button{white-space:nowrap}
   <div id="log"></div>
 </main>
 <footer>
-  คำสั่ง/ค่า/แจ้งเตือนเซ็นแต่<b>ไม่เข้ารหัส</b> ใครอ่านจากรีเลย์ได้ก็เห็น — ความลับให้ใช้ widget 🔒 ข้อความลับ (เข้ารหัส) ·
+  คำสั่ง/ค่าที่ส่งเซ็นแต่<b>ไม่เข้ารหัส</b> ใครอ่านจากรีเลย์ได้ก็เห็น — อย่าส่งความลับ ·
   กราฟย้อนหลังเก็บในเบราว์เซอร์นี้เท่านั้น ·
   <a href="#" id="bLog" style="color:inherit">log</a>
 </footer>
@@ -193,7 +187,6 @@ header button{white-space:nowrap}
     <option value="gauge">เกจ — บอร์ดส่งมาแสดง</option>
     <option value="chart">กราฟย้อนหลัง — บอร์ดส่งมาแสดง</option>
     <option value="notify">แจ้งเตือนข้อความ — บอร์ดส่งข้อความมาเตือน</option>
-    <option value="secure">🔒 ข้อความลับเข้ารหัส — คุยสองทางกับบอร์ด (ต้องใช้ไลบรารี NDS)</option>
   </select>
   <label for="wLabel">ชื่อ (เช่น ไฟหน้าบ้าน, อุณหภูมิ)</label>
   <input type="text" id="wLabel" autocomplete="off">
@@ -226,7 +219,7 @@ header button{white-space:nowrap}
   <table class="pins"><thead><tr><th>pin</th><th>widget</th><th>ทิศทาง</th></tr></thead><tbody id="cPins"></tbody></table>
   <label>ตัวอย่างวิธีใช้ในโค้ดบอร์ด</label>
   <textarea id="cUse" readonly spellcheck="false" style="min-height:130px"></textarea>
-  <div class="note">ติดตั้งไลบรารี <code>NostrDash</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที · widget "แจ้งเตือน" ใช้ <code>NostrDash.notify(PIN, "ข้อความ")</code> (ต้องใช้ไลบรารี NostrDash รุ่น 0.2.0 ขึ้นไป)<br>🔒 widget "ข้อความลับ" เข้ารหัส AES-256-GCM แบ่งเป็นท่อน (ท่อนแรกบอกจำนวนท่อน) ต้องติดตั้งไลบรารี <code>NDS</code> เพิ่ม (ใช้ NostrDash 0.3.0 ขึ้นไป) แล้วใช้ <code>NDS.send(PIN, "ข้อความ")</code> / <code>NDS.onMessage(...)</code> — <code>NostrDash.notify()</code> ยังเป็นข้อความธรรมดา</div>
+  <div class="note">ติดตั้งไลบรารี <code>NostrDash</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที · widget "แจ้งเตือน" ใช้ <code>NostrDash.notify(PIN, "ข้อความ")</code> (ต้องใช้ไลบรารี NostrDash รุ่น 0.2.0 ขึ้นไป)</div>
   <label>ย้ายไปเครื่องอื่น / สำรอง</label>
   <div class="row">
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
@@ -236,7 +229,6 @@ header button{white-space:nowrap}
   </div>
   <div class="row" style="margin-top:8px">
     <button id="cRegen" class="danger">สร้างกุญแจใหม่ (อุปกรณ์นี้)</button>
-    <button id="cRegenPsk" class="danger" title="กุญแจเข้ารหัส AES-256 ของ widget ข้อความลับ">🔒 สร้างกุญแจเข้ารหัสใหม่</button>
     <button id="cClr">ล้างกราฟ</button>
   </div>
   <div class="actions"><button id="cClose" class="primary">ปิด</button></div>
@@ -305,126 +297,15 @@ header button{white-space:nowrap}
 
 </script>
 <script>
-/* nds-core.js — NDS wire protocol (browser + Node 20+). Same format as src/NDS.h, see docs/PROTOCOL-SECURE.md.
- * AES-256-GCM per event (12-byte random nonce, 16-byte tag, AAD = sender pubkey (32 bytes) + "NDS1"), content = base64(nonce|ciphertext|tag).
- * Plaintext frames:  header 01 | mid(4) | total(1) | len(2, BE) | ts(4, BE) | channel(utf-8, 0-8 bytes)
- *                    piece  02 | mid(4) | index(1, from 1) | up to 96 bytes of the message */
-(function (root) {
-  'use strict';
-  const KIND = 21082, CHUNK = 96, MAX_MSG = 768, CHAN_MAX = 8, HDR_FIXED = 12, MAX_CHUNKS = Math.ceil(MAX_MSG / CHUNK);
-  const enc = new TextEncoder(), dec = new TextDecoder('utf-8');
-  const subtle = () => { const c = root.crypto || (typeof require === 'function' ? require('node:crypto').webcrypto : null); if (!c || !c.subtle) throw new Error('เบราว์เซอร์นี้ไม่มี WebCrypto (ต้องเปิดผ่าน https:// หรือ localhost)'); return c; };
-
-  const hex2u8 = (h) => { if (!/^([0-9a-f]{2})*$/i.test(h)) throw new Error('hex ไม่ถูกต้อง'); const o = new Uint8Array(h.length / 2); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(2 * i, 2), 16); return o; };
-  const u82hex = (u) => Array.from(u, (b) => b.toString(16).padStart(2, '0')).join('');
-  const b64e = (u) => { let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
-  const b64d = (s) => { const bin = atob(String(s).replace(/-/g, '+').replace(/_/g, '/')); const o = new Uint8Array(bin.length); for (let i = 0; i < o.length; i++) o[i] = bin.charCodeAt(i); return o; };
-  const randomKeyHex = () => u82hex(subtle().getRandomValues(new Uint8Array(32)));
-  const isHex64 = (s) => typeof s === 'string' && /^[0-9a-fA-F]{64}$/.test(s);
-
-  /* cut bytes into pieces of <= 96 bytes, never inside a UTF-8 character (same rule as nds_next_len in the C++ header) */
-  function splitBytes(u) {
-    const out = []; let off = 0;
-    while (off < u.length) {
-      const rem = u.length - off; let l;
-      if (rem <= CHUNK) l = rem; else { l = CHUNK; while (l > 0 && (u[off + l] & 0xC0) === 0x80) l--; if (!l) l = CHUNK; }
-      out.push(u.subarray(off, off + l)); off += l;
-    }
-    return out;
-  }
-  const aadOf = (pubHex) => { const a = new Uint8Array(36); a.set(hex2u8(pubHex), 0); a.set(enc.encode('NDS1'), 32); return a; };
-  const importKey = (hex) => subtle().subtle.importKey('raw', hex2u8(hex), 'AES-GCM', false, ['encrypt', 'decrypt']);
-
-  async function seal(key, senderPubHex, frame) {
-    const c = subtle(), nonce = c.getRandomValues(new Uint8Array(12));
-    const ct = new Uint8Array(await c.subtle.encrypt({ name: 'AES-GCM', iv: nonce, additionalData: aadOf(senderPubHex), tagLength: 128 }, key, frame));
-    const out = new Uint8Array(12 + ct.length); out.set(nonce, 0); out.set(ct, 12); return b64e(out);
-  }
-  async function open(key, senderPubHex, content) {
-    const raw = b64d(content);
-    if (raw.length < 12 + 16 + 6 || raw.length > 12 + 16 + 6 + CHUNK) throw new Error('ขนาดไม่ถูกต้อง');
-    return new Uint8Array(await subtle().subtle.decrypt({ name: 'AES-GCM', iv: raw.subarray(0, 12), additionalData: aadOf(senderPubHex), tagLength: 128 }, key, raw.subarray(12)));
-  }
-
-  /* text -> plaintext frames: frames[0] is the header (it says how many pieces follow), frames[1..total] are the pieces */
-  function makeFrames(text, chan, nowS, mid) {
-    const body = enc.encode(String(text)); chan = chan || '';
-    if (!body.length) throw new Error('ข้อความว่าง');
-    if (body.length > MAX_MSG) throw new Error('ข้อความยาวเกิน ' + MAX_MSG + ' ไบต์ (' + body.length + ')');
-    if (!/^[A-Za-z0-9_-]{0,8}$/.test(chan)) throw new Error('ชื่อช่องต้องเป็นตัวอักษร/ตัวเลข/-/_ ไม่เกิน 8 ตัว');
-    mid = mid || subtle().getRandomValues(new Uint8Array(4));
-    const parts = splitBytes(body), cb = enc.encode(chan);
-    const hdr = new Uint8Array(HDR_FIXED + cb.length);
-    hdr[0] = 1; hdr.set(mid, 1); hdr[5] = parts.length; hdr[6] = body.length >> 8; hdr[7] = body.length & 255;
-    const ts = nowS >>> 0; hdr[8] = ts >>> 24; hdr[9] = (ts >>> 16) & 255; hdr[10] = (ts >>> 8) & 255; hdr[11] = ts & 255; hdr.set(cb, HDR_FIXED);
-    const frames = [hdr];
-    parts.forEach((p, i) => { const f = new Uint8Array(6 + p.length); f[0] = 2; f.set(mid, 1); f[5] = i + 1; f.set(p, 6); frames.push(f); });
-    return { mid: u82hex(mid), total: parts.length, bytes: body.length, frames };
-  }
-  const countPieces = (text) => { const n = enc.encode(String(text)); return n.length ? splitBytes(n).length : 0; };
-
-  /* collects pieces in any order; the header may come last. feed() returns {st, ...}; onMessage fires once per complete message */
-  class Reassembler {
-    constructor(onMessage, opts) {
-      this.onMessage = onMessage; this.maxSkew = (opts && opts.maxSkew) || 90; this.timeoutMs = (opts && opts.timeoutMs) || 20000;
-      this.slots = new Map(); this.done = []; this.maxSlots = 4;
-    }
-    sweep(nowMs) { for (const [k, s] of this.slots) if (nowMs - s.born > this.timeoutMs) { this.slots.delete(k); if (this.onDrop) this.onDrop({ mid: s.mid, have: s.parts.size, total: s.hdr ? s.hdr.total : 0 }); } }
-    feed(sender, f, nowS, nowMs) {
-      nowMs = nowMs == null ? Date.now() : nowMs;
-      if (f.length < 6) return { st: 'ignored' };
-      const mid = u82hex(f.subarray(1, 5)), key = sender + ':' + mid;
-      if (this.done.includes(key)) return { st: 'dup', mid };
-      const reject = (why) => { this.slots.delete(key); this.done.push(key); if (this.done.length > 16) this.done.shift(); return { st: 'rejected', why, mid }; };
-      let s = this.slots.get(key);
-      const slot = () => { if (!s) { if (this.slots.size >= this.maxSlots) this.slots.delete(this.slots.keys().next().value); s = { mid, sender, hdr: null, parts: new Map(), born: nowMs }; this.slots.set(key, s); } return s; };
-      if (f[0] === 1) {
-        if (f.length < HDR_FIXED || f.length > HDR_FIXED + CHAN_MAX) return { st: 'ignored' };
-        const total = f[5], len = (f[6] << 8) | f[7], ts = ((f[8] << 24) | (f[9] << 16) | (f[10] << 8) | f[11]) >>> 0;
-        if (Math.abs(nowS - ts) > this.maxSkew) return reject('stale');
-        if (!total || total > MAX_CHUNKS || !len || len > MAX_MSG || len > total * CHUNK) return reject('bad-header');
-        slot(); if (s.hdr) return { st: 'dup', mid };
-        s.hdr = { total, len, ts, chan: dec.decode(f.subarray(HDR_FIXED)) };
-        return this._check(s, key, reject, { st: 'header', mid, total, len, chan: s.hdr.chan });
-      }
-      if (f[0] === 2) {
-        const idx = f[5], d = f.subarray(6);
-        if (idx < 1 || idx > MAX_CHUNKS || !d.length || d.length > CHUNK) return { st: 'ignored' };
-        slot(); if (s.hdr && idx > s.hdr.total) return reject('extra-piece');
-        if (s.parts.has(idx)) return { st: 'dup', mid };
-        s.parts.set(idx, d.slice());
-        return this._check(s, key, reject, { st: 'piece', mid, idx });
-      }
-      return { st: 'ignored' };
-    }
-    _check(s, key, reject, info) {
-      info.have = s.parts.size; info.total = s.hdr ? s.hdr.total : 0;
-      if (!s.hdr) return info;
-      let sum = 0; for (let i = 1; i <= s.hdr.total; i++) { const p = s.parts.get(i); if (!p) return info; sum += p.length; }
-      if (s.parts.size !== s.hdr.total) return reject('extra-piece');
-      if (sum !== s.hdr.len) return reject('length-mismatch');
-      const all = new Uint8Array(sum); let o = 0; for (let i = 1; i <= s.hdr.total; i++) { all.set(s.parts.get(i), o); o += s.parts.get(i).length; }
-      this.slots.delete(key); this.done.push(key); if (this.done.length > 16) this.done.shift();
-      const msg = { mid: s.mid, sender: s.sender, chan: s.hdr.chan, text: dec.decode(all), pieces: s.hdr.total, bytes: sum, ts: s.hdr.ts };
-      info.st = 'done'; info.msg = msg; if (this.onMessage) this.onMessage(msg); return info;
-    }
-  }
-
-  const NDS = { KIND, CHUNK, MAX_MSG, CHAN_MAX, MAX_CHUNKS, hex2u8, u82hex, b64e, b64d, randomKeyHex, isHex64, splitBytes, importKey, seal, open, makeFrames, countPieces, Reassembler };
-  if (typeof module !== 'undefined' && module.exports) module.exports = NDS; else root.NDS = NDS;
-})(typeof window !== 'undefined' ? window : globalThis);
-
-</script>
-<script>
 (() => {
 'use strict';
 const NL = window.NostrLite;
-const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080, K_NOTIFY = 21081, K_SECURE = 21082;   // 21082 = ข้อความลับเข้ารหัส (ส่วนเสริม NDS)
-const NDS = window.NDS;
+const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080, K_NOTIFY = 21081;
 // รีเลย์กำหนดตายตัวที่นี่ที่เดียว (ผู้ใช้ไม่ต้องรู้) — ทดสอบด้วย ?relay=ws://127.0.0.1:7777 เพื่อชี้ไปรีเลย์อื่น
 const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io', 'wss://relay.primal.net'];
 const qRelay = new URLSearchParams(location.search).get('relay');
-const RELAYS = qRelay && /^wss?:\/\//i.test(qRelay) ? [qRelay] : DEFAULT_RELAYS;
+const qList = qRelay ? qRelay.split(',').filter(u => /^wss?:\/\//i.test(u)) : [];
+const RELAYS = qList.length ? qList : DEFAULT_RELAYS;
 const ONLINE_MS = 75000;      // บอร์ดส่งสถานะทุก ~30 วินาที
 const MAX_SKEW = 180;
 const HIST_MAX = 1500;
@@ -582,10 +463,10 @@ const fmt = (n) => {
 };
 const num = (v) => typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : NaN);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-const saveCfg = () => store.set('nostrdash.cfg', { v: 3, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, psk: d.psk, widgets: d.widgets })) });
+const saveCfg = () => store.set('nostrdash.cfg', { v: 3, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) });
 
 // ---------- widget model ----------
-const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ', notify: 'แจ้งเตือน', secure: 'ข้อความลับ' };
+const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ', notify: 'แจ้งเตือน' };
 const isControl = (t) => t === 'switch' || t === 'slider';
 function sanitizeWidget(w) {
   if (!w || typeof w !== 'object' || !TYPES[w.type]) return null;
@@ -606,7 +487,7 @@ function nextPin() {
 }
 
 // ---------- กุญแจ (สร้างให้อัตโนมัติ) ----------
-function initDev(d) { d.pk = NL.pubFromSecret(d.bsk); d.ds = {}; d.last = 0; d.on = null; d.up = ''; d.nds = null; d.secProg = null; if (!isHex64(d.psk)) d.psk = NDS.randomKeyHex(); return d; }   // psk = กุญแจเข้ารหัสข้อความลับ (สร้างให้เอง)
+function initDev(d) { d.pk = NL.pubFromSecret(d.bsk); d.ds = {}; d.last = 0; d.on = null; d.up = ''; return d; }
 function ensureKeys() {
   if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nostrdash.sk', sk); }
   if (!root || typeof root !== 'object') root = { v: 3, devs: [] };
@@ -625,7 +506,7 @@ function ensureKeys() {
 
 // ---------- รีเลย์ ----------
 class Relay {
-  constructor(url) { this.url = url; this.ws = null; this.open = false; this.tries = 0; this.dead = false; this.connect(); }
+  constructor(url) { this.url = url; this.ws = null; this.open = false; this.tries = 0; this.dead = false; this.until = 0; this.bo = 0; this.banned = false; this.connect(); }
   connect() {
     if (this.dead) return;
     try { this.ws = new WebSocket(this.url); } catch (e) { log('✗', this.url, e.message); return this.retry(); }
@@ -638,7 +519,7 @@ class Relay {
   sub() {
     if (!this.open) return;
     this.ws.send(JSON.stringify(['REQ', 'nostrdash',
-      { kinds: [K_STATUS, K_NOTIFY, K_SECURE], authors: pks(), since: now() - 120 },
+      { kinds: [K_STATUS, K_NOTIFY], authors: pks(), since: now() - 120 },
       { kinds: [K_REPLY], authors: pks(), '#p': [mePk], since: now() - 120 }]));
   }
   retry() { if (this.dead) return; const d = Math.min(30000, 1000 * 2 ** Math.min(this.tries++, 5)); setTimeout(() => this.connect(), d); }
@@ -648,8 +529,8 @@ class Relay {
     let m; try { m = JSON.parse(raw); } catch (_) { return; }
     if (!Array.isArray(m)) return;
     if (m[0] === 'EVENT' && m[2]) onEvent(m[2], this.url);
-    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]); if (!m[2]) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
-    else if (m[0] === 'NOTICE') log('NOTICE', this.url, String(m[1] || ''));
+    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]); const c = txRelayReply(this, !!m[2], m[3]); if (!m[2] && !c) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
+    else if (m[0] === 'NOTICE') { log('NOTICE', this.url, String(m[1] || '')); if (txClassify(m[1])) txRelayReply(this, false, m[1]); }   // CLOSED เป็นเรื่องของ REQ ไม่ใช่การส่งอีเวนต์: ไม่นับ
   }
 }
 function updRelays() {
@@ -662,7 +543,7 @@ function connectAll() {
   for (const u of RELAYS) relays.push(new Relay(u));
   updRelays();
 }
-function broadcast(ev) { let n = 0; for (const r of relays) if (r.send(['EVENT', ev])) n++; return n; }
+function broadcast(ev) { let n = 0; for (const r of relays) if (relayOpen(r) && r.send(['EVENT', ev])) n++; return n; }
 
 // ---------- รับอีเวนต์ ----------
 function onEvent(ev, url) {
@@ -671,7 +552,6 @@ function onEvent(ev, url) {
   if (!NL.verifyEvent(ev)) { log('✗ ลายเซ็น/ไอดีไม่ถูกต้อง จาก', url); if (Date.now() - lastBadSig > 10000) { lastBadSig = Date.now(); monAdd('bad', '✗ ทิ้งอีเวนต์ที่อ้างว่ามาจากบอร์ดแต่ลายเซ็นไม่ถูกต้อง (' + url.replace(/^wss?:\/\//i, '') + ')'); } return; }
   seen.add(ev.id); if (seen.size > 600) seen.delete(seen.values().next().value);
   if (Math.abs(now() - ev.created_at) > MAX_SKEW) { log('ทิ้งอีเวนต์เวลาเพี้ยน', String(ev.created_at - now()) + 's'); return; }
-  if (ev.kind === K_SECURE) { onSecure(ev, dev); return; }                  // ข้อความลับ: content เป็นข้อความเข้ารหัส ไม่ใช่ JSON
   let body; try { body = JSON.parse(ev.content); } catch (_) { body = { text: String(ev.content).slice(0, 200) }; }
   if (ev.kind === K_STATUS) onStatus(body, ev, dev); else if (ev.kind === K_REPLY) onReply(body, ev); else if (ev.kind === K_NOTIFY) onNotify(body, ev, dev);
 }
@@ -717,12 +597,86 @@ function updBoard() {
   const dv = D(), age = Date.now() - dv.last, on = dv.up === 'on';
   $('#dBoard').className = 'dot ' + dv.up;
   $('#tBoard').textContent = !dv.last ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
-  for (const w of dv.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', (w.type === 'notify' || w.type === 'secure') ? false : (!on || !dv.ds[w.key])); }
+  for (const w of dv.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', w.type === 'notify' ? false : (!on || !dv.ds[w.key])); }
   document.querySelectorAll('#tabs .dot').forEach(e => { const d = root.devs.find(q => q.id === e.dataset.id); e.className = 'dot ' + (d ? d.up : ''); });
 }
 
+// ---------- จำกัดอัตราการส่ง (ฝังในหน้าเว็บ ปิดไม่ได้ — ทุก EVENT ที่ออกไปหารีเลย์ต้องผ่านที่นี่) ----------
+// ถังโทเคน (ตัวเดียวทั้งหน้า): ส่งติดกันได้ BURST ครั้ง แล้ว 1 ครั้ง/REFILL_MS (ตรงกับฝั่งบอร์ด 30 ครั้ง/นาที) · คำสั่งที่ถูกชะลอจะเข้าคิว ไม่ถูกทิ้ง
+// คำสั่งคีย์เดียวกัน (สไลเดอร์/สวิตช์ pin เดิม, status ของอุปกรณ์เดิม) ที่ยังรอคิวอยู่จะถูกแทนด้วยค่าล่าสุด
+// ผู้ใช้กดเอง (prio 0) ได้ก่อนและใช้โทเคนสุดท้ายได้ · ขอสถานะอัตโนมัติ (prio 1) ต้องเหลือ RESERVE โทเคนไว้ให้ผู้ใช้
+// สิ่งที่รีเลย์ตอบเป็นเรื่องของรีเลย์ตัวนั้นเท่านั้น (ประตูรายรีเลย์) — ตัดสินจากคำนำหน้ามาตรฐาน NIP-01 ไม่ใช่คำกว้างๆ:
+//   "rate-limited: …" → หยุดส่งไปที่รีเลย์นั้น BO_MIN แล้วเพิ่มเป็นสองเท่าทุกครั้งถึง BO_MAX และคลายลงเมื่อรีเลย์รับได้อีก
+//   "banned: …"       → ข้ามรีเลย์นั้น BAN_MS (ส่งต่อไปมีแต่จะผิดซ้ำ) · รีเลย์อื่นไม่ถูกกระทบ
+const TX = Object.freeze({ BURST: 6, REFILL_MS: 2000, RESERVE: 1, BO_MIN: 10000, BO_MAX: 300000, BAN_MS: 1800000, QMAX: 40 });
+const tx = { credit: TX.BURST, last: Date.now(), q: [], timer: 0, note: 0, sent: 0, limited: 0 };
+const relayOpen = (r) => r.open && Date.now() >= r.until;             // เชื่อมต่ออยู่ และไม่ได้อยู่ในช่วงพัก/ถูกแบน
+function txRefill() { const t = Date.now(); tx.credit = Math.min(TX.BURST, tx.credit + (t - tx.last) / TX.REFILL_MS); tx.last = t; }
+function txDelay(prio) {                                   // ms จนกว่าจะส่งได้ (0 = ส่งได้เลย)
+  txRefill(); const t = Date.now(), need = prio ? 1 + TX.RESERVE : 1;
+  const live = relays.filter(r => r.open);
+  const pause = live.length && !live.some(relayOpen) ? Math.max(0, Math.min(...live.map(r => r.until)) - t) : 0;   // ทุกรีเลย์ที่ต่ออยู่กำลังพัก
+  const wait = tx.credit >= need ? 0 : Math.ceil((need - tx.credit) * TX.REFILL_MS);
+  return Math.max(pause, wait);
+}
+function txPump() {
+  clearTimeout(tx.timer); tx.timer = 0;
+  while (tx.q.length) {
+    let i = tx.q.findIndex(j => j.prio === 0); if (i < 0) i = 0;
+    const j = tx.q[i], d = txDelay(j.prio);
+    if (d > 0) { tx.timer = setTimeout(txPump, Math.min(d, 2000) + 5); return; }
+    tx.q.splice(i, 1); tx.credit -= 1;
+    const id = j.run();
+    if (id === null) tx.credit = Math.min(TX.BURST, tx.credit + 1); else tx.sent++;   // ไม่มีรีเลย์ให้ส่ง = ไม่ได้ส่งจริง คืนโทเคน
+    j.waiters.forEach(w => w(id));
+  }
+}
+function txSubmit(key, prio, run) {
+  return new Promise(res => {
+    const waiters = [res], old = tx.q.findIndex(j => j.key === key);
+    if (old >= 0) { waiters.push(...tx.q[old].waiters); tx.q.splice(old, 1); }       // ค่าใหม่แทนค่าเก่าที่ยังไม่ได้ส่ง
+    if (tx.q.length >= TX.QMAX) {
+      const b = tx.q.findIndex(j => j.prio > 0);
+      if (b < 0) { waiters.forEach(w => w(null)); toast('คิวส่งเต็ม — รอสักครู่แล้วลองใหม่'); return; }
+      tx.q[b].waiters.forEach(w => w(null)); tx.q.splice(b, 1);
+    }
+    tx.q.push({ key, prio, run, waiters });
+    const d = txDelay(prio);
+    if (prio === 0 && d > 1500 && Date.now() - tx.note > 4000) { tx.note = Date.now(); toast('ส่งช้าลงชั่วคราวเพื่อไม่ให้รีเลย์ปฏิเสธ (รอ ~' + Math.ceil(d / 1000) + ' วิ)', 3500); }
+    txPump();
+  });
+}
+// ตัดสินจากข้อความที่รีเลย์ตอบ: 'ban' | 'limit' | '' — คำนำหน้า NIP-01 และวลีที่ชัดเจนเท่านั้น (blocked:/restricted:/error: ฯลฯ ไม่นับ)
+function txClassify(s) {
+  s = String(s || '');
+  if (/banned|blacklist/i.test(s)) return 'ban';              // เช็กก่อน: "too many rate-limit violations" คือการแบน
+  if (/^rate[- ]limited|rate[- ]limit|slow down|too fast|throttl/i.test(s)) return 'limit';
+  return '';
+}
+function txRelayReply(r, accepted, why) {
+  const t = Date.now();
+  if (accepted) { r.banned = false; if (r.bo) { r.bo = Math.floor(r.bo / 2); if (r.bo < TX.BO_MIN) r.bo = 0; } return ''; }
+  const c = txClassify(why); if (!c) return '';
+  if (c === 'ban') {
+    if (r.banned) return c;
+    r.banned = true; r.until = t + TX.BAN_MS; tx.limited++;
+    const m = 'รีเลย์ ' + r.host() + ' แบนกุญแจของหน้านี้ — ข้ามรีเลย์นี้ 30 นาที (ใช้รีเลย์อื่นต่อ) · ' + String(why).slice(0, 60);
+    log('⛔', m); monAdd('warn', '• ' + m); toast(m, 5000);
+  } else {
+    if (t < r.until) return c;                               // บ่นเรื่องเดียวกันซ้ำ = โทษครั้งเดียว
+    r.bo = r.bo ? Math.min(r.bo * 2, TX.BO_MAX) : TX.BO_MIN; r.until = t + r.bo; tx.limited++;
+    const m = 'รีเลย์ ' + r.host() + ' บอกว่าส่งถี่เกินไป — หยุดส่งไปที่รีเลย์นี้ ' + Math.round(r.bo / 1000) + ' วินาที (รีเลย์อื่นไม่กระทบ)';
+    log('⏳', m, why || ''); monAdd('warn', '• ' + m); toast(m, 4000);
+  }
+  txPump(); return c;
+}
+
 // ---------- ส่งคำสั่ง ----------
-async function sendCmd(obj, label, onDone, dev = D()) {
+async function sendCmd(obj, label, onDone, dev = D(), onSent) {
+  const key = obj.cmd + ':' + dev.id + ':' + (obj.pin == null ? '' : obj.pin);
+  return txSubmit(key, label === 'status' ? 1 : 0, () => sendCmdNow(obj, label, onDone, dev, onSent));
+}
+function sendCmdNow(obj, label, onDone, dev, onSent) {      // สร้าง+เซ็นอีเวนต์ตอนที่ถึงคิวส่งจริง (created_at จะไม่เก่าระหว่างรอ)
   const base = { kind: K_CMD, created_at: now(), tags: [['p', dev.pk]], content: JSON.stringify(obj) };
   const ev = NL.signEvent(base, sk);
   const n = broadcast(ev);
@@ -731,6 +685,7 @@ async function sendCmd(obj, label, onDone, dev = D()) {
   trackCmd(ev, obj); { const r = cmds.get(ev.id); if (r) r.dev = dev; }
   setTimeout(() => pending.delete(ev.id), 15000);
   log('→ ส่ง', base.content, '(' + n + ' รีเลย์)');
+  if (onSent) onSent();
   return ev.id;
 }
 let lastStatusReq = 0;
@@ -746,7 +701,7 @@ async function sendW(w, value) {
     clearPending(w.id);
     if (!body || body.ok !== false) dv.ds[w.key] = { v: value, ts: Date.now() };
     const x = widgetEls.get(w.id); if (x) x.update();
-  }, dv);
+  }, dv, () => setPending(w.id));                          // เริ่มนับเวลารอคำตอบเมื่อส่งออกจริง ไม่ใช่ตอนเข้าคิว
   if (!id) clearPending(w.id);
   return id;
 }
@@ -767,7 +722,7 @@ function cardBase(w, ...body) {
     h('button', { class: 'danger', text: 'ลบ', onclick: () => { if (confirm('ลบ "' + w.label + '" ? (' + w.key + ' จะว่างและถูกใช้ซ้ำได้)')) { cfg.widgets = cfg.widgets.filter(x => x.id !== w.id); saveCfg(); renderAll(); } } }),
     h('button', { text: '←', title: 'เลื่อนขึ้น', onclick: () => moveW(w, -1) }),
     h('button', { text: '→', title: 'เลื่อนลง', onclick: () => moveW(w, 1) }));
-  return h('div', { class: 'card' + (w.type === 'chart' || w.type === 'notify' || w.type === 'secure' ? ' wide' : '') },
+  return h('div', { class: 'card' + (w.type === 'chart' || w.type === 'notify' ? ' wide' : '') },
     h('h3', null, h('span', { text: w.label }), h('span', { class: 'pin', text: w.key })), ...body, tools);
 }
 function moveW(w, d) {
@@ -943,97 +898,7 @@ function mkNotify(w) {
   }
   return { el, update };
 }
-// ---------- 🔒 ข้อความลับ (สองทาง, เข้ารหัส AES-256-GCM แบ่งท่อน, kind 21082) ----------
-// ท่อนแรกคือส่วนหัวที่บอกจำนวนท่อน แล้วตามด้วยท่อนข้อมูล ผู้รับต่อท่อนกลับเป็นข้อความเดียว (รายละเอียด: ไลบรารี NDS docs/PROTOCOL-SECURE.md)
-let secs = store.get('nostrdash.secure', {});     // { 'devId:Vn': [[เวลา(ms), ข้อความ, mid, 'in'|'out', จำนวนท่อน], ...] }
-let lastBadSec = 0;
-async function ndsOf(dev) {
-  if (!dev.nds || dev.nds.psk !== dev.psk) {
-    const ra = new NDS.Reassembler((m) => onSecureMsg(dev, m), { maxSkew: 90, timeoutMs: 20000 });
-    ra.onDrop = (d) => { dev.secProg = null; monAdd('warn', '🔒 ท่อนไม่ครบ ทิ้งข้อความ (ได้ ' + d.have + (d.total ? '/' + d.total : '') + ' ท่อน)'); widgetEls.forEach(x => x.update()); };
-    dev.nds = { psk: dev.psk, key: await NDS.importKey(dev.psk), ra };
-  }
-  return dev.nds;
-}
-async function onSecure(ev, dev) {
-  let n, pt;
-  try { n = await ndsOf(dev); pt = await NDS.open(n.key, dev.pk, ev.content); }
-  catch (_) {
-    if (Date.now() - lastBadSec > 10000) { lastBadSec = Date.now(); monAdd('bad', '🔒✗ ถอดรหัสข้อความไม่ได้ — กุญแจเข้ารหัสไม่ตรงกับบอร์ด (กด 🔌 คัดลอกโค้ดล่าสุดไปอัปโหลดบอร์ดใหม่) หรือข้อมูลถูกแก้');}
-    return;
-  }
-  const r = n.ra.feed(dev.pk, pt, now()); dev.last = Date.now();
-  if (r.st === 'header' || r.st === 'piece') {
-    dev.secProg = { have: r.have, total: r.total, t: Date.now() };
-    if (r.st === 'header') monAdd('dim', '🔒← ส่วนหัว: ชุดนี้มี ' + r.total + ' ท่อน (' + r.len + ' ไบต์) — ข้อความเข้ารหัสจากบอร์ด');
-  } else if (r.st === 'rejected') { dev.secProg = null; monAdd('bad', '🔒✗ ทิ้งข้อความเข้ารหัส: ' + r.why); }
-  if (dev === D()) widgetEls.forEach(x => x.update());
-}
-function onSecureMsg(dev, m) {
-  dev.secProg = null;
-  const text = m.text.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ').slice(0, 800).trim(); if (!text) return;
-  const pin = /^V\d{1,3}$/.test(m.chan) ? m.chan : ((dev.widgets.find(w => w.type === 'secure') || {}).key || 'V0');
-  const k = noteKey(dev, pin), a = secs[k] || (secs[k] = []);
-  a.push([Date.now(), text, m.mid, 'in', m.pieces]); if (a.length > NOTE_MAX) a.splice(0, a.length - NOTE_MAX);
-  store.set('nostrdash.secure', secs);
-  const w = dev.widgets.find(x => x.key === pin), who = (root.devs.length > 1 ? dev.name + ' · ' : '') + (w ? w.label : pin);
-  monAdd('warn', '🔒✉ ' + who + ': ' + text + '   (ถอดรหัสแล้ว · ' + m.pieces + ' ท่อน)');
-  if (dev === D()) widgetEls.forEach(x => x.update());
-  updBoard(); notifyUser('🔒 ' + who, text);
-}
-async function sendSecure(w, text, onProg) {
-  const dev = D(), f = NDS.makeFrames(text, w.key, now());       // ข้อความว่าง/ยาวเกิน 768 ไบต์ → throw
-  if (!relays.some(r => r.open)) throw new Error('ยังไม่ได้เชื่อมต่อรีเลย์');
-  const n = await ndsOf(dev);
-  const el = monAdd('cmd', '🔒→ ส่งข้อความเข้ารหัสไป ' + pinName(w.key) + ': ' + f.total + ' ท่อน (' + f.bytes + ' ไบต์)', 'ส่วนหัว: ชุดนี้มี ' + f.total + ' ท่อน — กำลังส่ง…');
-  for (let i = 0; i < f.frames.length; i++) {
-    const content = await NDS.seal(n.key, mePk, f.frames[i]);
-    const ev = NL.signEvent({ kind: K_SECURE, created_at: now(), tags: [['p', dev.pk]], content }, sk);
-    if (!broadcast(ev)) { monSet(el, 'cmd bad', el.querySelector('.mx').textContent, '✗ รีเลย์หลุดระหว่างส่ง (ส่งไปแล้ว ' + i + '/' + (f.frames.length) + ' อีเวนต์)'); throw new Error('รีเลย์หลุดระหว่างส่ง'); }
-    onProg && onProg(i, f.total);
-    if (i < f.frames.length - 1) await new Promise(r => setTimeout(r, 350));
-  }
-  monSet(el, 'cmd ok', el.querySelector('.mx').textContent, '✓ ส่งครบ ' + (f.total + 1) + ' อีเวนต์ (ส่วนหัว + ' + f.total + ' ท่อน) เข้ารหัสทุกอีเวนต์ — บอร์ดไม่ตอบรับอัตโนมัติ ถ้าโค้ดบอร์ดตอบกลับจะขึ้นที่นี่');
-  const k = noteKey(dev, w.key), a = secs[k] || (secs[k] = []);
-  a.push([Date.now(), text, f.mid, 'out', f.total]); if (a.length > NOTE_MAX) a.splice(0, a.length - NOTE_MAX);
-  store.set('nostrdash.secure', secs);
-}
-setInterval(() => root.devs.forEach(d => { if (d.nds) d.nds.ra.sweep(Date.now()); }), 2000);
-function mkSecure(w) {
-  const list = h('div', { class: 'nlist seclist' }), sub = h('div', { class: 'sub' }), prog = h('div', { class: 'sprog' }), cnt = h('div', { class: 'sub' });
-  const ta = h('textarea', { rows: '2', maxlength: '2000', placeholder: 'พิมพ์ข้อความลับ — เข้ารหัสก่อนส่ง', 'aria-label': w.label });
-  const send = h('button', { class: 'primary', text: '🔒 ส่ง' });
-  const clr = h('button', { text: 'ล้าง', onclick: () => { if (confirm('ล้างข้อความของ \"' + w.label + '\" ?')) { delete secs[noteKey(D(), w.key)]; store.set('nostrdash.secure', secs); update(); } } });
-  const bytes = () => new TextEncoder().encode(ta.value).length;
-  const showCnt = () => { const b = bytes(); cnt.textContent = b ? b + ' ไบต์ → ' + NDS.countPieces(ta.value.trim() || ' ') + ' ท่อน' + (b > NDS.MAX_MSG ? ' (เกิน ' + NDS.MAX_MSG + ' ไบต์!)' : '') : ''; cnt.style.color = b > NDS.MAX_MSG ? 'var(--bad)' : ''; };
-  ta.addEventListener('input', showCnt);
-  const go = async () => {
-    const t = ta.value.trim(); if (!t || send.disabled) return;
-    send.disabled = true;
-    try { await sendSecure(w, t, (i, total) => { prog.textContent = 'กำลังส่ง ' + i + '/' + total + ' ท่อน…'; }); ta.value = ''; showCnt(); }
-    catch (e) { toast('ส่งไม่สำเร็จ: ' + e.message); }
-    prog.textContent = ''; send.disabled = false; update();
-  };
-  send.addEventListener('click', go);
-  ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); go(); } });
-  const el = cardBase(w, list, sub, h('div', { class: 'sform' }, ta, send), cnt, prog, h('div', { class: 'ntool', style: 'margin-top:6px' }, clr));
-  function update() {
-    const a = secs[noteKey(D(), w.key)] || [], dv = D();
-    list.replaceChildren();
-    if (!a.length) list.append(h('div', { class: 'nempty', text: 'ยังไม่มีข้อความ — บอร์ดส่งด้วย NDS.send(PIN_' + w.key + ', \"ข้อความ\") และรับด้วย NDS.onMessage(...)' }));
-    for (let i = a.length - 1; i >= 0; i--) {
-      const x = a[i], d = new Date(x[0]), sameDay = d.toDateString() === new Date().toDateString();
-      list.append(h('div', { class: 'nrow ' + (x[3] === 'out' ? 'out' : 'in') },
-        h('span', { class: 'nt', text: (sameDay ? '' : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ') + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + (x[3] === 'out' ? ' →' : ' ←') }),
-        h('span', { text: x[1] }), h('span', { class: 'nt', text: '  🔒' + (x[4] || '') })));
-    }
-    const sp = dv.secProg && Date.now() - dv.secProg.t < 25000 ? dv.secProg : null;
-    if (sp && !send.disabled) prog.textContent = 'กำลังรับจากบอร์ด: ได้ ' + sp.have + (sp.total ? '/' + sp.total : '') + ' ท่อน…'; else if (send.disabled) {} else prog.textContent = '';
-    sub.textContent = '🔒 เข้ารหัส AES-256-GCM ทุกข้อความ · เก็บในเบราว์เซอร์นี้ · ช่อง ' + w.key;
-  }
-  return { el, update };
-}
-const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart, notify: mkNotify, secure: mkSecure };
+const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart, notify: mkNotify };
 
 function renderTabs() {
   const t = $('#tabs'); t.replaceChildren(); t.classList.toggle('show', root.devs.length > 1);
@@ -1085,7 +950,6 @@ $('#dvDel').onclick = () => {
   if (!editingD || root.devs.length < 2 || !confirm('ลบอุปกรณ์ "' + editingD.name + '" พร้อม widget ทั้งหมด?')) return;
   for (const k of Object.keys(hist)) if (k.startsWith(editingD.id + ':')) delete hist[k];
   for (const k of Object.keys(notes)) if (k.startsWith(editingD.id + ':')) delete notes[k]; store.set('nostrdash.notes', notes);
-  for (const k of Object.keys(secs)) if (k.startsWith(editingD.id + ':')) delete secs[k]; store.set('nostrdash.secure', secs);
   root.devs = root.devs.filter(d => d !== editingD); root.act = root.devs[0].id;
   relays.forEach(r => r.sub()); saveCfg(); $('#dlgDev').close(); renderAll();
 };
@@ -1094,7 +958,7 @@ $('#dvDel').onclick = () => {
 let editingW = null;
 function wTypeUi() {
   const t = $('#wType').value;
-  $('#wRange').style.display = (t === 'switch' || t === 'notify' || t === 'secure') ? 'none' : '';
+  $('#wRange').style.display = (t === 'switch' || t === 'notify') ? 'none' : '';
   $('#wStepBox').style.display = t === 'slider' ? '' : 'none';
 }
 function openWidgetDlg(w) {
@@ -1126,43 +990,35 @@ $('#wSave').onclick = () => {
 // ---------- โค้ดเชื่อมบอร์ด ----------
 function genCode() {
   const L = [];
-  const hasSec = cfg.widgets.some(w => w.type === 'secure');
   L.push('#include <NostrDash.h>');
-  if (hasSec) L.push('#include <NDS.h>        // ส่วนเสริมเข้ารหัสข้อความ (สำหรับ widget "ข้อความลับ")');
   L.push('');
   L.push('// ===== จากหน้าเว็บ NostrDash — ห้ามอัปโหลดขึ้น GitHub =====');
   L.push('// อุปกรณ์: ' + D().name);
   L.push('#define NOSTRDASH_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
   L.push('#define NOSTRDASH_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
   L.push('#define NOSTRDASH_RELAYS       "' + RELAYS.map(u => u.replace(/^wss?:\/\//i, '')).join(',') + '"');
-  if (hasSec) L.push('#define NDS_KEY                "' + D().psk + '"  // กุญแจเข้ารหัสข้อความ AES-256 (ใช้ร่วมกันสองฝั่ง)');
   L.push('');
   if (cfg.widgets.length) {
     L.push('// ===== ตำแหน่ง (pin) ของแต่ละ widget =====');
     const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : w.type === 'notify' ? ' [บอร์ดส่งข้อความ]' : w.type === 'secure' ? ' [ข้อความลับ เข้ารหัส สองทาง]' : ' [บอร์ดส่ง]'));
+    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : w.type === 'notify' ? ' [บอร์ดส่งข้อความ]' : ' [บอร์ดส่ง]'));
   } else L.push('// (ยังไม่มี widget — กด ＋ ในหน้าเว็บก่อน)');
   return L.join('\n');
 }
 function genUse() {
   const L = [];
   const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
-  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type) && w.type !== 'notify').sort(byPin), no = cfg.widgets.filter(w => w.type === 'notify').sort(byPin), sc = cfg.widgets.filter(w => w.type === 'secure').sort(byPin);
+  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type) && w.type !== 'notify').sort(byPin), no = cfg.widgets.filter(w => w.type === 'notify').sort(byPin);
   L.push('void setup() {');
   for (const w of so) L.push('  NostrDash.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
   for (const w of so) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
   L.push('  NostrDash.begin("ชื่อWiFi", "รหัสWiFi", NOSTRDASH_BOARD_SECRET, NOSTRDASH_CONTROLLER, NOSTRDASH_RELAYS);');
-  if (sc.length) {
-    L.push('  NDS.begin(NDS_KEY);   // เปิดส่วนเสริมเข้ารหัส (ต่อจาก NostrDash.begin)');
-    L.push('  NDS.onMessage([](const char *chan, const char *text, size_t len) { /* ข้อความลับจากหน้าเว็บ (ถอดรหัสแล้ว) chan = pin เช่น "' + sc[0].key + '" */ });');
-  }
   L.push('}');
   L.push('');
   L.push('void loop() {');
   L.push('  NostrDash.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ');
   for (const w of oo) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // ใส่ค่าที่อ่านได้: ' + w.label);
   for (const w of no) L.push('  // เมื่อเกิดเหตุการณ์: NostrDash.notify(PIN_' + w.key + ', "ข้อความ");  // ' + w.label + ' (หรือ notifyf(PIN_' + w.key + ', "อุณหภูมิ %.1f", t))');
-  for (const w of sc) L.push('  // ส่งข้อความลับ (เข้ารหัส): NDS.send(PIN_' + w.key + ', "ข้อความ");  // ' + w.label);
   L.push('}');
   return L.join('\n');
 }
@@ -1170,7 +1026,7 @@ function openConn() {
   $('#cCode').value = genCode(); $('#cUse').value = genUse();
   const tb = $('#cPins'); tb.replaceChildren();
   const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : w.type === 'notify' ? 'บอร์ดส่งข้อความ' : w.type === 'secure' ? '🔒 สองทาง (เข้ารหัส)' : 'บอร์ดส่งค่า' })));
+  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : w.type === 'notify' ? 'บอร์ดส่งข้อความ' : 'บอร์ดส่งค่า' })));
   if (!sorted.length) tb.append(h('tr', null, h('td', { colspan: '3', text: 'ยังไม่มี widget' })));
   $('#dlgConn').showModal(); $('#cCopy').focus(); $('#cCode').scrollTop = 0;
 }
@@ -1191,7 +1047,7 @@ function textDlg(title, text, readonly, ok) {
 }
 $('#cExp').onclick = () => {
   if (!confirm('รหัสนี้มีกุญแจลับ ใครได้ไปก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return;
-  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrdash1.' + b64e({ sk, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, psk: d.psk, widgets: d.widgets })) }), true);
+  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrdash1.' + b64e({ sk, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) }), true);
 };
 $('#cImp').onclick = () => textDlg('วางรหัสย้ายเครื่อง', '', false, async (v) => {
   try {
@@ -1206,7 +1062,7 @@ const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((ok, no) =>
   const e = document.createElement('script'); e.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
   e.onload = ok; e.onerror = () => no(new Error('โหลดตัวสร้าง QR ไม่ได้ (ต้องออนไลน์) — ใช้คัดลอกรหัสย้ายเครื่องแทน')); document.head.append(e);
 });
-function transferCode(all) { return 'nostrdash1.' + b64e({ sk, act: D().id, devs: (all ? root.devs : [D()]).map(d => ({ id: d.id, name: d.name, bsk: d.bsk, psk: d.psk, widgets: d.widgets })) }); }
+function transferCode(all) { return 'nostrdash1.' + b64e({ sk, act: D().id, devs: (all ? root.devs : [D()]).map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) }); }
 async function showQr() {
   const box = $('#qrBox'), note = $('#qrNote'); box.replaceChildren();
   try {
@@ -1282,10 +1138,10 @@ async function importScanned(code) {
   let first = null, added = 0, updated = 0;
   for (const d of j.devs) {
     const ex = root.devs.find(x => (d.id && x.id === d.id) || x.bsk === d.bsk);
-    if (ex) { ex.name = String(d.name || ex.name).slice(0, 30); ex.widgets = Array.isArray(d.widgets) ? d.widgets : ex.widgets; if (isHex64(d.psk)) { ex.psk = d.psk; ex.nds = null; } first = first || ex.id; updated++; }
+    if (ex) { ex.name = String(d.name || ex.name).slice(0, 30); ex.widgets = Array.isArray(d.widgets) ? d.widgets : ex.widgets; first = first || ex.id; updated++; }
     else {
       if (root.devs.length >= 20) { toast('เพิ่มได้สูงสุด 20 อุปกรณ์'); break; }
-      const nd = { id: (typeof d.id === 'string' && d.id) ? d.id.slice(0, 20) : uid(), name: d.name, bsk: d.bsk, psk: d.psk, widgets: Array.isArray(d.widgets) ? d.widgets : [] };
+      const nd = { id: (typeof d.id === 'string' && d.id) ? d.id.slice(0, 20) : uid(), name: d.name, bsk: d.bsk, widgets: Array.isArray(d.widgets) ? d.widgets : [] };
       root.devs.push(nd); first = first || nd.id; added++;
     }
   }
@@ -1315,10 +1171,6 @@ $('#cRegen').onclick = async () => {
   D().bsk = NL.genSecret(); saveCfg();
   $('#dlgConn').close(); await start(); openConn();
 };
-$('#cRegenPsk').onclick = async () => {
-  if (!confirm('สร้างกุญแจเข้ารหัสใหม่ของ "' + D().name + '" ? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดแล้วอัปโหลดซ้ำ ข้อความลับเก่าที่ดักไว้จะถอดไม่ได้อีก')) return;
-  D().psk = NDS.randomKeyHex(); D().nds = null; saveCfg(); openConn(); toast('สร้างกุญแจเข้ารหัสใหม่แล้ว — คัดลอกโค้ดไปอัปโหลดบอร์ด');
-};
 $('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nostrdash.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
 $('#bAdd').onclick = () => openWidgetDlg(null);
 $('#bEdit').onclick = () => { editMode = !editMode; document.body.classList.toggle('edit', editMode); $('#bEdit').textContent = editMode ? '✅' : '✏️'; };
@@ -1336,7 +1188,7 @@ setInterval(() => store.set('nostrdash.hist', hist), 20000);
 window.addEventListener('pagehide', () => store.set('nostrdash.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
-start().then(() => { window.__nostrdash = { secs: () => secs, psk: () => D().psk, cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk }; });
+start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk, tx, relayState: () => relays.map(r => ({ bo: r.bo, until: r.until - Date.now(), banned: r.banned })), sendCmd: (o, l, f) => sendCmd(o, l, f), relaysOpen: () => relays.some(r => r.open) }; });
 })();
 </script>
 </body>

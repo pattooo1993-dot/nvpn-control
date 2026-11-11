@@ -528,8 +528,9 @@ class Relay {
     let m; try { m = JSON.parse(raw); } catch (_) { return; }
     if (!Array.isArray(m)) return;
     if (m[0] === 'EVENT' && m[2]) onEvent(m[2], this.url);
-    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]); if (!m[2]) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
-    else if (m[0] === 'NOTICE') log('NOTICE', this.url, String(m[1] || ''));
+    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]); if (m[2]) txAccepted(); else if (txLooksLimited(m[3])) txPenalize(this.host(), m[3]); else toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
+    else if (m[0] === 'NOTICE') { log('NOTICE', this.url, String(m[1] || '')); if (txLooksLimited(m[1])) txPenalize(this.host(), m[1]); }
+    else if (m[0] === 'CLOSED' && txLooksLimited(m[2])) txPenalize(this.host(), m[2]);
   }
 }
 function updRelays() {
@@ -600,8 +601,65 @@ function updBoard() {
   document.querySelectorAll('#tabs .dot').forEach(e => { const d = root.devs.find(q => q.id === e.dataset.id); e.className = 'dot ' + (d ? d.up : ''); });
 }
 
+// ---------- จำกัดอัตราการส่ง (ฝังในหน้าเว็บ ปิดไม่ได้ — ทุก EVENT ที่ออกไปหารีเลย์ต้องผ่านที่นี่) ----------
+// ถังโทเคน: ส่งติดกันได้ BURST ครั้ง แล้ว 1 ครั้ง/REFILL_MS (ตรงกับฝั่งบอร์ด 30 ครั้ง/นาที) · คำสั่งที่ถูกชะลอจะเข้าคิว ไม่ถูกทิ้ง
+// คำสั่งคีย์เดียวกัน (สไลเดอร์/สวิตช์ pin เดิม, status ของอุปกรณ์เดิม) ที่ยังรอคิวอยู่จะถูกแทนด้วยค่าล่าสุด
+// ผู้ใช้กดเอง (prio 0) ได้ก่อนและใช้โทเคนสุดท้ายได้ · ขอสถานะอัตโนมัติ (prio 1) ต้องเหลือ RESERVE โทเคนไว้ให้ผู้ใช้
+// รีเลย์ตอบ rate-limited / slow down → หยุดส่ง BO_MIN แล้วเพิ่มเป็นสองเท่าทุกครั้งถึง BO_MAX และคลายลงเมื่อรีเลย์รับได้อีก
+const TX = Object.freeze({ BURST: 6, REFILL_MS: 2000, RESERVE: 1, BO_MIN: 10000, BO_MAX: 300000, QMAX: 40 });
+const tx = { credit: TX.BURST, last: Date.now(), until: 0, bo: 0, q: [], timer: 0, note: 0, sent: 0, limited: 0 };
+function txRefill() {
+  const t = Date.now();
+  if (t < tx.until) tx.credit = 0; else tx.credit = Math.min(TX.BURST, tx.credit + (t - tx.last) / TX.REFILL_MS);
+  tx.last = t;
+}
+function txDelay(prio) {                                   // ms จนกว่าจะส่งได้ (0 = ส่งได้เลย)
+  txRefill(); const t = Date.now(), need = prio ? 1 + TX.RESERVE : 1;
+  const pause = Math.max(0, tx.until - t), have = pause ? 0 : tx.credit;
+  return have >= need ? 0 : pause + Math.ceil((need - have) * TX.REFILL_MS);
+}
+function txPump() {
+  clearTimeout(tx.timer); tx.timer = 0;
+  while (tx.q.length) {
+    let i = tx.q.findIndex(j => j.prio === 0); if (i < 0) i = 0;
+    const j = tx.q[i], d = txDelay(j.prio);
+    if (d > 0) { tx.timer = setTimeout(txPump, Math.min(d, 2000) + 5); return; }
+    tx.q.splice(i, 1); tx.credit -= 1;
+    const id = j.run();
+    if (id === null) tx.credit = Math.min(TX.BURST, tx.credit + 1); else tx.sent++;   // ไม่มีรีเลย์เชื่อมอยู่ = ไม่ได้ส่งจริง คืนโทเคน
+    j.waiters.forEach(w => w(id));
+  }
+}
+function txSubmit(key, prio, run) {
+  return new Promise(res => {
+    const waiters = [res], old = tx.q.findIndex(j => j.key === key);
+    if (old >= 0) { waiters.push(...tx.q[old].waiters); tx.q.splice(old, 1); }       // ค่าใหม่แทนค่าเก่าที่ยังไม่ได้ส่ง
+    if (tx.q.length >= TX.QMAX) {
+      const b = tx.q.findIndex(j => j.prio > 0);
+      if (b < 0) { waiters.forEach(w => w(null)); toast('คิวส่งเต็ม — รอสักครู่แล้วลองใหม่'); return; }
+      tx.q[b].waiters.forEach(w => w(null)); tx.q.splice(b, 1);
+    }
+    tx.q.push({ key, prio, run, waiters });
+    const d = txDelay(prio);
+    if (prio === 0 && d > 1500 && Date.now() - tx.note > 4000) { tx.note = Date.now(); toast('ส่งช้าลงชั่วคราวเพื่อไม่ให้รีเลย์ปฏิเสธ (รอ ~' + Math.ceil(d / 1000) + ' วิ)', 3500); }
+    txPump();
+  });
+}
+const txLooksLimited = (s) => /rate|slow down|too many|limit|throttl|flood|too fast|too frequent/i.test(String(s || ''));
+function txPenalize(host, why) {
+  const t = Date.now(); if (t < tx.until) return;           // หลายรีเลย์บ่นเรื่องเดียวกัน = โทษครั้งเดียว
+  tx.bo = tx.bo ? Math.min(tx.bo * 2, TX.BO_MAX) : TX.BO_MIN; tx.until = t + tx.bo; tx.credit = 0; tx.last = t; tx.limited++;
+  const m = 'รีเลย์ ' + host + ' บอกว่าส่งถี่เกินไป — หยุดส่ง ' + Math.round(tx.bo / 1000) + ' วินาที';
+  log('⏳', m, why || ''); monAdd('warn', '• ' + m); toast(m, 4000); txPump();
+}
+function txAccepted() { if (tx.bo) { tx.bo = Math.floor(tx.bo / 2); if (tx.bo < TX.BO_MIN) tx.bo = 0; } }
+
 // ---------- ส่งคำสั่ง ----------
-async function sendCmd(obj, label, onDone, dev = D()) {
+async function sendCmd(obj, label, onDone, dev = D(), onSent) {
+  const key = obj.cmd + ':' + dev.id + ':' + (obj.pin == null ? '' : obj.pin);
+  return txSubmit(key, label === 'status' ? 1 : 0, () => sendCmdNow(obj, label, onDone, dev, onSent));
+}
+function sendCmdNow(obj, label, onDone, dev, onSent) {      // สร้าง+เซ็นอีเวนต์ตอนที่ถึงคิวส่งจริง (created_at จะไม่เก่าระหว่างรอ)
   const base = { kind: K_CMD, created_at: now(), tags: [['p', dev.pk]], content: JSON.stringify(obj) };
   const ev = NL.signEvent(base, sk);
   const n = broadcast(ev);
@@ -610,6 +668,7 @@ async function sendCmd(obj, label, onDone, dev = D()) {
   trackCmd(ev, obj); { const r = cmds.get(ev.id); if (r) r.dev = dev; }
   setTimeout(() => pending.delete(ev.id), 15000);
   log('→ ส่ง', base.content, '(' + n + ' รีเลย์)');
+  if (onSent) onSent();
   return ev.id;
 }
 let lastStatusReq = 0;
@@ -625,7 +684,7 @@ async function sendW(w, value) {
     clearPending(w.id);
     if (!body || body.ok !== false) dv.ds[w.key] = { v: value, ts: Date.now() };
     const x = widgetEls.get(w.id); if (x) x.update();
-  }, dv);
+  }, dv, () => setPending(w.id));                          // เริ่มนับเวลารอคำตอบเมื่อส่งออกจริง ไม่ใช่ตอนเข้าคิว
   if (!id) clearPending(w.id);
   return id;
 }
@@ -1112,7 +1171,7 @@ setInterval(() => store.set('nostrdash.hist', hist), 20000);
 window.addEventListener('pagehide', () => store.set('nostrdash.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
-start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk }; });
+start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk, tx, sendCmd: (o, l, f) => sendCmd(o, l, f), relaysOpen: () => relays.some(r => r.open) }; });
 })();
 </script>
 </body>

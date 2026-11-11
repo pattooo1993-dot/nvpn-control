@@ -40,6 +40,9 @@ main{padding:12px;max-width:1100px;margin:0 auto}
 @media (max-width:480px){.card.wide{grid-column:span 1}}
 .card h3{margin:0;font-size:13px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
 .card .key{font-weight:400;font-size:11px;opacity:.8}
+.card h3 .hr{display:inline-flex;align-items:center;gap:6px}
+.card h3 button.rep{padding:1px 6px;font-size:12px;line-height:1.4;border-radius:8px}
+.card h3 button.rep.busy{opacity:.5;pointer-events:none}
 .big{font-size:30px;font-weight:700;letter-spacing:-.5px}
 .big small{font-size:14px;font-weight:400;color:var(--muted);margin-left:4px}
 .stale .big,.stale svg,.stale canvas{opacity:.45}
@@ -153,7 +156,6 @@ header button{white-space:nowrap}
   <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ (กำหนดไว้ให้แล้ว)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
   <button class="icon add" id="bDev" title="เพิ่มอุปกรณ์ (การ์ดใหม่)">📟＋</button>
   <button class="icon add" id="bScan" title="สแกน QR เพิ่มอุปกรณ์">📷</button>
-  <button class="icon" id="bReport" title="ขอรายงานจากบอร์ด: สวิตช์เปิดกี่ตัว ค่าเซนเซอร์เท่าไร ณ ตอนนี้">📋</button>
   <button class="icon" id="bRefresh" title="ขอสถานะจากบอร์ดตอนนี้ (บอร์ดอ่านเซนเซอร์/สถานะทุกตัวแล้วส่งกลับมา)">🔄</button>
   <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
   <button class="icon" id="bConn" title="โค้ดเชื่อมบอร์ด">🔌</button>
@@ -381,7 +383,7 @@ const ERR_TH = {
 function pinName(pin) { const w = cfg.widgets.find(x => x.key === pin); return w ? w.label + ' (' + pin + ')' : String(pin); }
 function cmdTitle(r) {
   if (r.cmd === 'vw') return '→ สั่ง ' + pinName(r.pin) + ' = ' + fmt(Number(r.arg));
-  if (r.cmd === 'report') return '→ ขอรายงานทั้งหมดจากบอร์ด';
+  if (r.cmd === 'report') return r.pin ? '→ ขอรายงาน ' + pinName(r.pin) + ' จากบอร์ด' : '→ ขอรายงานทั้งหมดจากบอร์ด';
   if (r.cmd === 'status') return '→ ขอสถานะจากบอร์ด' + (r.pins && r.pins.length ? ' (' + r.pins.length + ' ค่า: ' + r.pins.join(', ') + ')' : '');
   return '→ ส่งคำสั่ง ' + r.cmd;
 }
@@ -654,7 +656,9 @@ function cardBase(w, ...body) {
     h('button', { text: '←', title: 'เลื่อนขึ้น', onclick: () => moveW(w, -1) }),
     h('button', { text: '→', title: 'เลื่อนลง', onclick: () => moveW(w, 1) }));
   return h('div', { class: 'card' + (w.type === 'chart' || w.type === 'notify' ? ' wide' : '') },
-    h('h3', null, h('span', { text: w.label }), h('span', { class: 'pin', text: w.key })), ...body, tools);
+    h('h3', null, h('span', { text: w.label }), h('span', { class: 'hr' },
+      w.type === 'notify' ? null : h('button', { class: 'rep', text: '📋', title: 'ขอรายงานเฉพาะ "' + w.label + '" จากบอร์ด', 'aria-label': 'ขอรายงาน ' + w.label, onclick: (e) => requestWidgetReport(w, e.currentTarget) }),
+      h('span', { class: 'pin', text: w.key }))), ...body, tools);
 }
 function moveW(w, d) {
   const i = cfg.widgets.findIndex(x => x.id === w.id), j = i + d;
@@ -1124,43 +1128,33 @@ setInterval(() => store.set('nostrdash.hist', hist), 20000);
 window.addEventListener('pagehide', () => store.set('nostrdash.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
-// ---------- รายงานจากบอร์ด (สแนปช็อตทุก pin: สวิตช์ + เซนเซอร์ + ระบบ) ----------
+// ---------- รายงานจากบอร์ดเป็นรายตัว (ปุ่ม 📋 บนการ์ดของแต่ละ widget) ----------
 function fmtUp(s) { s = Math.max(0, Math.floor(s)); const d = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return (d ? d + ' วัน ' : '') + (hh ? hh + ' ชม. ' : '') + m + ' นาที'; }
-function buildReport(dev, body) {
+function widgetReportText(dev, w, body) {
   const v = body.v && typeof body.v === 'object' ? body.v : {};
-  const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
-  const ws = dev.widgets.filter(w => w.type !== 'notify').sort(byPin);
-  const sws = ws.filter(w => w.type === 'switch'), oth = ws.filter(w => w.type !== 'switch'), known = new Set(ws.map(w => w.key));
-  const L = ['📋 รายงานจากบอร์ด "' + dev.name + '" · ' + new Date().toLocaleTimeString('th-TH', { hour12: false })];
-  if (sws.length) {
-    const on = sws.filter(w => num(v[w.key]) > 0.5).length;
-    L.push('', 'สวิตช์: เปิดอยู่ ' + on + ' จาก ' + sws.length + ' ตัว');
-    for (const w of sws) L.push('  ' + (w.key in v ? (num(v[w.key]) > 0.5 ? '● ' : '○ ') : '? ') + w.label + ' (' + w.key + '): ' + (w.key in v ? (num(v[w.key]) > 0.5 ? 'เปิด' : 'ปิด') : 'ไม่มีข้อมูล'));
-  }
-  if (oth.length) {
-    L.push('', 'ค่าเซนเซอร์ / ตัวเลข:');
-    for (const w of oth) L.push('  • ' + w.label + ' (' + w.key + '): ' + (w.key in v ? fmt(num(v[w.key])) + (w.unit ? ' ' + w.unit : '') : 'ไม่มีข้อมูล (โค้ดบอร์ดยังไม่มี onRead/set ของ pin นี้)'));
-  }
-  const extra = Object.keys(v).filter(k => !known.has(k));
-  if (extra.length) { L.push('', 'pin ที่ยังไม่มี widget:'); for (const k of extra) L.push('  • ' + k + ': ' + fmt(num(v[k]))); }
-  const sys = [];
-  if (isFinite(body.up)) sys.push('ทำงานมา ' + fmtUp(body.up));
-  if (isFinite(body.rssi) && body.rssi !== 0) sys.push('Wi-Fi ' + body.rssi + ' dBm');
-  if (isFinite(body.heap)) sys.push('RAM ว่าง ' + Math.round(body.heap / 1024) + ' KB');
-  if (sys.length) L.push('', 'ระบบ: ' + sys.join(' · '));
-  return L.join('\n');
+  const has = w.key in v, n = num(v[w.key]);
+  let val;
+  if (!has) val = 'ไม่มีข้อมูล (โค้ดบอร์ดยังไม่มี onRead/set ของ pin นี้)';
+  else if (w.type === 'switch') val = n > 0.5 ? 'เปิด' : 'ปิด';
+  else val = (typeof v[w.key] === 'string' ? v[w.key] : fmt(n)) + (w.unit ? ' ' + w.unit : '');
+  return { has, val, line: w.label + ' (' + w.key + '): ' + val };
 }
-async function requestReport() {
+async function requestWidgetReport(w, btn) {
   const dev = D();
-  const id = await sendCmd({ cmd: 'report' }, 'report', (body) => {
+  if (btn) btn.classList.add('busy');
+  const free = () => { if (btn) btn.classList.remove('busy'); };
+  const tm = setTimeout(free, CMD_TIMEOUT);
+  const id = await sendCmd({ cmd: 'report', pin: w.key, pins: [w.key] }, 'report', (body) => {
+    clearTimeout(tm); free();
     if (!body || body.ok === false || !body.v) return;
-    const text = buildReport(dev, body);
-    monAdd('ok', '📋 ได้รับรายงานจากบอร์ด', text);
-    textDlg('📋 รายงานจากบอร์ด', text, true, (x) => copyText(x, $('#tArea')), 'คัดลอก');
+    const r = widgetReportText(dev, w, body);
+    if (r.has) { const n = num(body.v[w.key]); dev.ds[w.key] = { v: isFinite(n) ? n : body.v[w.key], ts: Date.now() }; if (dev === D()) widgetEls.forEach(x => x.update()); }
+    monAdd(r.has ? 'ok' : 'warn', '📋 รายงาน ' + r.line);
+    toast('📋 ' + r.line, 4000);
   }, dev);
-  toast(id ? 'ขอรายงานจากบอร์ดแล้ว — รอสักครู่…' : 'ส่งคำขอไม่ได้');
+  if (!id) { clearTimeout(tm); free(); return; }
+  toast('ขอรายงาน "' + w.label + '" จากบอร์ดแล้ว — รอสักครู่…');
 }
-$('#bReport').onclick = requestReport;
 $('#bRefresh').onclick = () => { toast(requestStatus(true) ? 'ขอสถานะจากบอร์ดแล้ว — รอค่าใหม่…' : 'เพิ่งขอไป รอสักครู่'); };
 start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk }; });
 })();

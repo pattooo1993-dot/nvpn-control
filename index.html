@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>NostrDash แดชบอร์ด</title>
+<title>NostrC — Nostr Control Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E📟%3C/text%3E%3C/svg%3E">
 <style>
 :root{
@@ -114,51 +114,19 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
 .ml.dim .mx{color:var(--muted)}
 .ml.cmd .mx{font-weight:600}
 .monempty{color:var(--muted);padding:8px 0}
-.top{position:sticky;top:0;z-index:5}.top header{position:static}
-#tabs{display:none;gap:6px;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
-#tabs.show{display:flex}
-#tabs button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 14px;white-space:nowrap}
-#tabs button.act{background:var(--accent);border-color:var(--accent);color:#fff}
-#tabs .dot{width:8px;height:8px}
-.card.dev{grid-column:1/-1;padding:0;gap:0}
-.devhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
-.devhead b{flex:1;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.devbody{padding:12px}
-#qrBox{background:#fff;padding:12px;border-radius:10px;max-width:320px;margin:10px auto}#qrBox:empty{display:none}#qrBox svg{display:block;width:100%;height:auto}
-#scanBox{position:relative;background:#000;border-radius:10px;overflow:hidden;max-width:420px;aspect-ratio:1;margin:10px auto}
-#scanBox video{width:100%;height:100%;object-fit:cover;display:block}
-#scanBox::after{content:"";position:absolute;inset:16%;border:3px solid #fff9;border-radius:14px;pointer-events:none}
-.nlist{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:2px 8px;font-size:13px}
-.nrow{padding:5px 0;border-bottom:1px dashed var(--line);word-break:break-word;white-space:pre-wrap}
-.nrow:last-child{border-bottom:0}
-.nrow .nt{color:var(--muted);font:11px ui-monospace,Menlo,Consolas,monospace;margin-right:8px}
-.nrow.new{font-weight:600}
-.nempty{color:var(--muted);padding:8px 0;font-size:12px}
-.ntool{display:flex;gap:6px;flex-wrap:wrap}
-.ntool button{padding:4px 10px;font-size:12px}
-header button{white-space:nowrap}
-@media (max-width:480px){
-  header{gap:4px;padding:8px 6px;flex-wrap:wrap;justify-content:flex-end}
-  header h1{display:none}
-  header .pill{padding:3px 6px;font-size:11px;gap:4px}
-  header button.icon{padding:6px 7px}
-}
 </style>
 </head>
 <body>
-<div class="top">
 <header>
-  <h1>NostrDash <span class="sub" id="boardName"></span></h1>
+  <h1>NostrC <small style="font-weight:400;color:var(--muted);font-size:11px">Nostr Control Dashboard</small> <span class="sub" id="boardName"></span></h1>
   <span class="pill" title="สถานะบอร์ด"><span class="dot" id="dBoard"></span><span id="tBoard">รอบอร์ด</span></span>
-  <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ (กำหนดไว้ให้แล้ว)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
-  <button class="icon add" id="bDev" title="เพิ่มอุปกรณ์ (การ์ดใหม่)">📟＋</button>
-  <button class="icon add" id="bScan" title="สแกน QR เพิ่มอุปกรณ์">📷</button>
+  <span class="pill" title="รีเลย์ที่เชื่อมต่อได้ / ที่ใช้อยู่ (สลับตัวสำรองให้เอง)"><span class="dot" id="dRelay"></span><span id="tRelay">0/0</span></span>
+  <span class="pill" title="ช่องทางที่ใช้อยู่: รีเลย์ หรือช่องทางสำรอง"><span class="dot" id="dLink"></span><span id="tLink">—</span></span>
+  <button class="icon" id="bNet" title="สุขภาพการเชื่อมต่อ / ตั้งค่ารีเลย์">📶</button>
   <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
   <button class="icon" id="bConn" title="โค้ดเชื่อมบอร์ด">🔌</button>
   <button class="icon" id="bEdit" title="จัดเรียง/แก้ไข/ลบ">✏️</button>
 </header>
-<nav id="tabs" aria-label="อุปกรณ์"></nav>
-</div>
 
 <main>
   <div class="grid" id="grid"></div>
@@ -186,7 +154,6 @@ header button{white-space:nowrap}
     <option value="value">ตัวเลขค่า — บอร์ดส่งมาแสดง</option>
     <option value="gauge">เกจ — บอร์ดส่งมาแสดง</option>
     <option value="chart">กราฟย้อนหลัง — บอร์ดส่งมาแสดง</option>
-    <option value="notify">แจ้งเตือนข้อความ — บอร์ดส่งข้อความมาเตือน</option>
   </select>
   <label for="wLabel">ชื่อ (เช่น ไฟหน้าบ้าน, อุณหภูมิ)</label>
   <input type="text" id="wLabel" autocomplete="off">
@@ -201,6 +168,21 @@ header button{white-space:nowrap}
     <button id="wClose">ยกเลิก</button>
     <button id="wSave" class="primary">บันทึก</button>
   </div>
+</dialog>
+
+<!-- สุขภาพการเชื่อมต่อ -->
+<dialog id="dlgNet">
+  <h2>📶 การเชื่อมต่อ</h2>
+  <div class="note">หน้านี้ต่อรีเลย์แค่ 2 ตัวจากรายการ ถ้าตัวไหนบอกว่าส่งถี่เกิน/บล็อก จะหยุดส่งหรือพักตัวนั้นแล้วสลับไปตัวสำรองเอง ถ้าใช้รีเลย์ไม่ได้เลยจะใช้ช่องทางสำรอง (กล่องจดหมาย HTTP)</div>
+  <table class="pins"><thead><tr><th>รีเลย์</th><th>สถานะ</th><th>ส่งแล้ว</th><th>หมายเหตุ</th></tr></thead><tbody id="nRows"></tbody></table>
+  <div class="note" id="nMb"></div>
+  <label for="nPool">รายการรีเลย์ (บรรทัดละ 1 ตัว ตัวบนสุดใช้ก่อน ไม่เกิน 6) — ใส่รีเลย์ส่วนตัวไว้บนสุดจะเสถียรที่สุด</label>
+  <textarea id="nPool" spellcheck="false" style="min-height:110px"></textarea>
+  <label for="nMail">ช่องทางสำรอง (URL ฐานของบริการแบบ ntfy; เว้นว่าง/ปิด = ไม่ใช้)</label>
+  <input type="text" id="nMail" autocomplete="off">
+  <label><input type="checkbox" id="nMailOn"> เปิดใช้ช่องทางสำรอง</label>
+  <div class="note">เปลี่ยนรายการรีเลย์/ช่องทางสำรองแล้ว ต้องกด 🔌 คัดลอกโค้ดใหม่ไปอัปโหลดบอร์ดด้วย เพื่อให้สองฝั่งใช้รายการเดียวกัน</div>
+  <div class="actions"><button id="nReset">คืนค่าเริ่มต้น</button><button id="nClose">ปิด</button><button id="nSave" class="primary">บันทึก</button></div>
 </dialog>
 
 <!-- โค้ดเชื่อมบอร์ด -->
@@ -219,51 +201,17 @@ header button{white-space:nowrap}
   <table class="pins"><thead><tr><th>pin</th><th>widget</th><th>ทิศทาง</th></tr></thead><tbody id="cPins"></tbody></table>
   <label>ตัวอย่างวิธีใช้ในโค้ดบอร์ด</label>
   <textarea id="cUse" readonly spellcheck="false" style="min-height:130px"></textarea>
-  <div class="note">ติดตั้งไลบรารี <code>NostrDash</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrDash.set(PIN, ค่า)</code> ส่งไปหน้าเว็บเมื่อค่าเปลี่ยน หรือทุก 30 วินาที · widget "แจ้งเตือน" ใช้ <code>NostrDash.notify(PIN, "ข้อความ")</code> (ต้องใช้ไลบรารี NostrDash รุ่น 0.2.0 ขึ้นไป)</div>
+  <div class="note">ติดตั้งไลบรารี <code>NostrC</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrC.onRead(PIN, ฟังก์ชันอ่านค่า, deadband)</code> ลงทะเบียนครั้งเดียว ไลบรารีอ่านและส่งเอง (ไม่ส่งถี่เกินงบ) · ถ้าแก้รายการรีเลย์ที่ปุ่ม 📶 ต้องคัดลอกโค้ดนี้ไปอัปโหลดบอร์ดใหม่ด้วย</div>
   <label>ย้ายไปเครื่องอื่น / สำรอง</label>
   <div class="row">
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
-    <button id="cQr">แสดง QR</button>
     <button id="cImp">ใส่รหัสย้ายเครื่อง</button>
-    <button id="cScan">📷 สแกน QR</button>
   </div>
   <div class="row" style="margin-top:8px">
-    <button id="cRegen" class="danger">สร้างกุญแจใหม่ (อุปกรณ์นี้)</button>
+    <button id="cRegen" class="danger">สร้างกุญแจใหม่ทั้งหมด</button>
     <button id="cClr">ล้างกราฟ</button>
   </div>
   <div class="actions"><button id="cClose" class="primary">ปิด</button></div>
-</dialog>
-
-<!-- อุปกรณ์ -->
-<dialog id="dlgDev">
-  <h2 id="dvTitle">อุปกรณ์</h2>
-  <label for="dvName">ชื่ออุปกรณ์ (เช่น ห้องนอน, โรงรถ, สวน)</label>
-  <input type="text" id="dvName" maxlength="30" autocomplete="off">
-  <div class="row" id="dvScanRow" style="margin-top:10px"><button id="dvScan">📷 สแกน QR จากเครื่องอื่นแทน</button></div>
-  <div class="note">1 อุปกรณ์ = 1 การ์ด มีกุญแจบอร์ดและ pin ของตัวเอง — กด 🔌 ขณะเลือกอุปกรณ์นั้นเพื่อคัดลอกโค้ดไปใส่บอร์ดตัวนั้น</div>
-  <div class="actions"><button id="dvDel" class="danger">ลบอุปกรณ์</button><button id="dvClose">ยกเลิก</button><button id="dvSave" class="primary">บันทึก</button></div>
-</dialog>
-
-<!-- QR ย้ายเครื่อง -->
-<dialog id="dlgQr">
-  <h2>📱 QR ย้ายไปแอพมือถือ</h2>
-  <label for="qrAll">เนื้อหา</label>
-  <select id="qrAll"><option value="0">เฉพาะอุปกรณ์ที่เปิดอยู่ (QR เล็ก สแกนง่าย)</option><option value="1">ทุกอุปกรณ์</option></select>
-  <div id="qrBox"></div>
-  <div class="warnbox">QR นี้มี<b>กุญแจลับ</b> ใครสแกนได้ก็สั่งบอร์ดได้ อย่าแคปหน้าจอหรือแชร์ที่สาธารณะ</div>
-  <div class="note" id="qrNote">เปิดฟังก์ชันนำเข้าในแอพมือถือแล้วสแกน หรือใช้ปุ่ม "คัดลอกรหัสย้ายเครื่อง" ไปวางแทน</div>
-  <div class="actions"><button id="qrClose" class="primary">ปิด</button></div>
-</dialog>
-
-<!-- สแกน QR -->
-<dialog id="dlgScan">
-  <h2>📷 สแกน QR เพิ่มอุปกรณ์</h2>
-  <div id="scanBox"><video id="scanVid" playsinline muted></video></div>
-  <div class="note" id="scanNote">เล็งกล้องไปที่ QR ที่ได้จาก 🔌 → "แสดง QR" ในเครื่องต้นทาง</div>
-  <input type="file" id="scanImg" accept="image/*" hidden>
-  <div class="row" style="margin-top:8px"><button id="scanFile">🖼️ เลือกรูป QR จากเครื่อง</button></div>
-  <div class="warnbox">QR มี<b>กุญแจลับ</b> สแกนแล้วเครื่องนี้จะสั่งบอร์ดเหล่านั้นได้ ใช้เฉพาะ QR ที่คุณสร้างเอง</div>
-  <div class="actions"><button id="scanClose" class="primary">ปิด</button></div>
 </dialog>
 
 <!-- ข้อความทั่วไป -->
@@ -300,13 +248,25 @@ header button{white-space:nowrap}
 (() => {
 'use strict';
 const NL = window.NostrLite;
-const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080, K_NOTIFY = 21081;
-// รีเลย์กำหนดตายตัวที่นี่ที่เดียว (ผู้ใช้ไม่ต้องรู้) — ทดสอบด้วย ?relay=ws://127.0.0.1:7777 เพื่อชี้ไปรีเลย์อื่น
-const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io', 'wss://relay.primal.net'];
-const qRelay = new URLSearchParams(location.search).get('relay');
-const qList = qRelay ? qRelay.split(',').filter(u => /^wss?:\/\//i.test(u)) : [];
-const RELAYS = qList.length ? qList : DEFAULT_RELAYS;
-const ONLINE_MS = 75000;      // บอร์ดส่งสถานะทุก ~30 วินาที
+const K_CMD = 21078, K_REPLY = 21079, K_STATUS = 21080;
+// รายการรีเลย์ (ลำดับ = ความสำคัญ) ใช้ 2 ตัวแรกก่อน ที่เหลือเป็นตัวสำรองที่สลับมาใช้เองเมื่อตัวหนึ่งโดนจำกัด/บล็อก
+// แก้ได้ที่ปุ่ม 📶 (เช่นเพิ่มรีเลย์ส่วนตัวของคุณเองไว้บนสุด — วิธีที่ยั่งยืนที่สุด) ทดสอบด้วย ?relay=ws://127.0.0.1:7777&mailbox=http://127.0.0.1:7778
+const DEFAULT_POOL = ['wss://nos.lol', 'wss://relay.damus.io', 'wss://relay.primal.net', 'wss://offchain.pub', 'wss://nostr.mom'];
+const DEFAULT_MAILBOX = 'https://ntfy.sh';
+const qp = new URLSearchParams(location.search), qRelay = qp.get('relay'), qMail = qp.get('mailbox');
+const goodRelay = (u) => /^wss?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[^\s"'<>\\]*)?$/.test(u);
+function loadNet() {
+  let n = store.get('nostrc.net', null) || {};
+  let pool = Array.isArray(n.pool) ? n.pool.filter(u => typeof u === 'string' && goodRelay(u)).slice(0, 6) : [];
+  if (!pool.length) pool = DEFAULT_POOL.slice();
+  let mailbox = typeof n.mailbox === 'string' ? n.mailbox : DEFAULT_MAILBOX, mailboxOn = n.mailboxOn !== false;
+  if (qRelay && goodRelay(qRelay)) { pool = [qRelay]; mailboxOn = false; }
+  if (qMail) { mailbox = qMail; mailboxOn = true; }
+  return { pool, mailbox, mailboxOn };
+}
+let hbMs = 30000;                                    // ช่วง heartbeat ที่บอร์ดประกาศมา (ชะลอเองเมื่อรีเลย์บ่น)
+const ONLINE_MS = 75000;      // ขั้นต่ำ: บอร์ดส่งสถานะทุก ~30 วินาที
+const onlineMs = () => Math.max(ONLINE_MS, hbMs * 2.5);
 const MAX_SKEW = 180;
 const HIST_MAX = 1500;
 const $ = (s, r = document) => r.querySelector(s);
@@ -317,18 +277,15 @@ const store = {
   del(k) { try { localStorage.removeItem(k); } catch (_) {} },
 };
 
-// ย้ายข้อมูลจากชื่อเดิม (nvpn.*) → nostrdash.* ครั้งเดียว (กุญแจและ widget ไม่หาย)
-for (const k of ['cfg', 'sk', 'hist']) { try { if (localStorage.getItem('nostrdash.' + k) == null && localStorage.getItem('nvpn.' + k) != null) localStorage.setItem('nostrdash.' + k, localStorage.getItem('nvpn.' + k)); } catch (_) {} }
+// ย้ายข้อมูลจากชื่อเดิม (nostrdash.* / nvpn.*) → nostrc.* ครั้งเดียว (กุญแจและ widget ไม่หาย)
+for (const k of ['cfg', 'sk', 'hist']) { try { if (localStorage.getItem('nostrc.' + k) == null) { const o = localStorage.getItem('nostrdash.' + k) ?? localStorage.getItem('nvpn.' + k); if (o != null) localStorage.setItem('nostrc.' + k, o); } } catch (_) {} }
 
 // ---------- สถานะ ----------
-let root = store.get('nostrdash.cfg', null);
-const D = () => root.devs.find(d => d.id === root.act) || root.devs[0];
-const cfg = { get widgets() { return D().widgets; }, set widgets(v) { D().widgets = v; }, get bsk() { return D().bsk; } };
-const pks = () => root.devs.map(d => d.pk);        // {v:2, bsk, widgets[]}
-let sk = store.get('nostrdash.sk', null);          // กุญแจของหน้าเว็บ (ผู้สั่ง)
+let cfg = store.get('nostrc.cfg', null);        // {v:2, bsk, widgets[]}
+let sk = store.get('nostrc.sk', null);          // กุญแจของหน้าเว็บ (ผู้สั่ง)
 let mePk = null, boardPk = null;
-const ds = new Proxy({}, { get: (_, k) => D().ds[k], set: (_, k, v) => { D().ds[k] = v; return true; } });
-let hist = store.get('nostrdash.hist', {});
+const ds = {};
+let hist = store.get('nostrc.hist', {});
 let lastStatusAt = 0;
 const seen = new Set();
 const pending = new Map();
@@ -372,9 +329,11 @@ function monSet(el, cls, text, detail) {
   else if (d) d.remove();
 }
 const ERR_TH = {
-  'not-controller': 'กุญแจของหน้าเว็บนี้ไม่อยู่ใน NOSTRDASH_CONTROLLER ของบอร์ด (กด 🔌 คัดลอกโค้ดล่าสุดไปอัปโหลดบอร์ดใหม่)',
-  'bad-pin': 'บอร์ดไม่มี pin นี้ (ในโค้ดบอร์ดลืม NostrDash.onWrite(PIN_…) หรือยังไม่ได้อัปโหลดโค้ดล่าสุด)',
+  'not-controller': 'กุญแจของหน้าเว็บนี้ไม่อยู่ใน NOSTRC_CONTROLLER ของบอร์ด (กด 🔌 คัดลอกโค้ดล่าสุดไปอัปโหลดบอร์ดใหม่)',
+  'bad-pin': 'บอร์ดไม่มี pin นี้ (ในโค้ดบอร์ดลืม NostrC.onWrite(PIN_…) หรือยังไม่ได้อัปโหลดโค้ดล่าสุด)',
   'bad-arg': 'ค่าที่ส่งไม่ใช่ตัวเลข',
+  'rate': 'บอร์ดจำกัดอัตราคำสั่ง (ส่งถี่เกินไป) — รอสักครู่แล้วลองใหม่',
+  'busy': 'บอร์ดกำลังทำรายการอื่นอยู่ ลองใหม่อีกครั้ง',
   'unknown-cmd': 'บอร์ดไม่รู้จักคำสั่งนี้ (เวอร์ชันโค้ดบอร์ดเก่าไหม?)',
 };
 function pinName(pin) { const w = cfg.widgets.find(x => x.key === pin); return w ? w.label + ' (' + pin + ')' : String(pin); }
@@ -423,9 +382,8 @@ function cmdRelayOk(eventId, host, accepted, why) {
   (accepted ? r.relayOk : r.relayNo).push(accepted ? host : host + (why ? ' (' + String(why).slice(0, 40) + ')' : ''));
   renderCmd(r);
 }
-function cmdStatusCheck(flat, t, dev) {      // ใช้เฉพาะค่าจากสถานะจริงของบอร์ดครั้งนี้ (ไม่ใช่ค่าที่หน้าเว็บเดาไว้)
+function cmdStatusCheck(flat, t) {      // ใช้เฉพาะค่าจากสถานะจริงของบอร์ดครั้งนี้ (ไม่ใช่ค่าที่หน้าเว็บเดาไว้)
   for (const r of cmds.values()) {
-    if (r.dev && r.dev !== dev) continue;
     if (r.confirmed || (r.replied && r.ok === false) || t - r.t > 20000) continue;
     if (r.cmd === 'status') { r.confirmed = true; r.confMs = t - r.t; r.timedOut = false; renderCmd(r); continue; }
     if (r.cmd !== 'vw' || !(r.pin in flat)) continue;
@@ -433,11 +391,11 @@ function cmdStatusCheck(flat, t, dev) {      // ใช้เฉพาะค่�
   }
 }
 let boardOn = null, lastBadSig = 0;
-function monBoardState(d, on) {
-  if (d.on === on) return;
-  d.on = on; const nm = root.devs.length > 1 ? '[' + d.name + '] ' : '';
-  if (on) monAdd('ok', nm + '● บอร์ดออนไลน์ — ได้รับสถานะ (ลายเซ็นถูกต้อง)');
-  else monAdd('warn', nm + '○ ไม่ได้รับสถานะจากบอร์ดเกิน ' + (ONLINE_MS / 1000) + ' วินาที → ออฟไลน์');
+function monBoardState(on) {
+  if (boardOn === on) return;
+  boardOn = on;
+  if (on) monAdd('ok', '● บอร์ดออนไลน์ — ได้รับสถานะ (ลายเซ็นถูกต้อง)');
+  else monAdd('warn', '○ ไม่ได้รับสถานะจากบอร์ดเกิน ' + Math.round(onlineMs() / 1000) + ' วินาที → ออฟไลน์');
 }
 
 function h(tag, attrs, ...kids) {
@@ -463,10 +421,10 @@ const fmt = (n) => {
 };
 const num = (v) => typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : NaN);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-const saveCfg = () => store.set('nostrdash.cfg', { v: 3, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) });
+const saveCfg = () => store.set('nostrc.cfg', cfg);
 
 // ---------- widget model ----------
-const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ', notify: 'แจ้งเตือน' };
+const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ' };
 const isControl = (t) => t === 'switch' || t === 'slider';
 function sanitizeWidget(w) {
   if (!w || typeof w !== 'object' || !TYPES[w.type]) return null;
@@ -487,73 +445,202 @@ function nextPin() {
 }
 
 // ---------- กุญแจ (สร้างให้อัตโนมัติ) ----------
-function initDev(d) { d.pk = NL.pubFromSecret(d.bsk); d.ds = {}; d.last = 0; d.on = null; d.up = ''; return d; }
 function ensureKeys() {
-  if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nostrdash.sk', sk); }
-  if (!root || typeof root !== 'object') root = { v: 3, devs: [] };
-  if (!root.devs && isHex64(root.bsk)) root = { v: 3, devs: [{ name: 'อุปกรณ์ 1', bsk: root.bsk, widgets: root.widgets }] };   // ย้ายข้อมูลจากรุ่นเดิม (1 บอร์ด)
-  root.devs = (root.devs || []).filter(d => d && isHex64(d.bsk)).slice(0, 20);
-  if (!root.devs.length) root.devs.push({ name: 'อุปกรณ์ 1', bsk: NL.genSecret(), widgets: [] });
-  for (const d of root.devs) {
-    d.id = typeof d.id === 'string' && d.id ? d.id.slice(0, 20) : uid(); d.name = String(d.name || 'อุปกรณ์').slice(0, 30);
-    d.widgets = (d.widgets || []).map(sanitizeWidget).filter(Boolean); initDev(d);
-  }
-  if (!root.devs.some(d => d.id === root.act)) root.act = root.devs[0].id;
-  for (const k of Object.keys(hist)) if (!k.includes(':')) { hist[root.devs[0].id + ':' + k] = hist[k]; delete hist[k]; }
-  mePk = NL.pubFromSecret(sk);
+  if (!isHex64(sk)) { sk = NL.genSecret(); store.set('nostrc.sk', sk); }
+  if (!cfg || cfg.v !== 2 || !isHex64(cfg.bsk)) cfg = { v: 2, bsk: NL.genSecret(), widgets: [] };
+  cfg.widgets = (cfg.widgets || []).map(sanitizeWidget).filter(Boolean);
+  mePk = NL.pubFromSecret(sk); boardPk = NL.pubFromSecret(cfg.bsk);
   saveCfg();
 }
 
-// ---------- รีเลย์ ----------
+// ---------- เครือข่าย: กลุ่มรีเลย์ (สลับตัวสำรองเอง) + ช่องทางสำรอง ----------
+// หลักคิดเดียวกับฝั่งบอร์ด (src/nostrc_core.h): ต่อแค่ 2 ตัว, อ่านคำตอบของรีเลย์ (OK false / NOTICE) แล้วชะลอ/พัก/สลับตัวสำรอง,
+// reconnect แบบ backoff+jitter, งบส่ง (token bucket), รวมคำสั่งสไลเดอร์ที่ซ้ำ, ช่องทางสำรอง HTTP (ntfy-compatible) เมื่อรีเลย์ใช้ไม่ได้
+const BASE_MS = 3000, BACKOFF_MAX = 300000, CONNECT_TIMEOUT = 15000, FLAP_MS = 15000, FLAP_LIMIT = 3, FAILOVER_FAILS = 3, STABLE_MS = 60000;
+const RATE_PAUSE = 60000, RATE_PAUSE_MAX = 900000, RATE_STRIKES = 4, BLOCK_BASE = 600000, BLOCK_MAX = 21600000, DECAY_MS = 1800000;
+const ACTIVE_BASE = 2, PIN_GAP = 1100, MB_ON_AFTER = 10000, MB_SILENT_AFTER = 45000, MB_OFF_AFTER = 30000;
+const jitter = (d) => d / 2 + Math.random() * (d / 2);
+function classify(msg) {                       // ตรงกับ nostrc::classify ฝั่งบอร์ด
+  const m = String(msg || '').trim().toLowerCase(); if (!m) return 'other';
+  if (m.startsWith('duplicate:')) return 'dup'; if (m.startsWith('invalid:')) return 'invalid';
+  if (m.startsWith('rate-limited:') || m.startsWith('rate limited')) return 'rate';
+  if (/^(blocked|restricted|mute):/.test(m)) return 'block'; if (/^(auth-required|pow):/.test(m)) return 'auth';
+  if (/rate|too many|slow down|throttl|flood|too fast|excessive|limit exceeded|try again later/.test(m)) return 'rate';
+  if (/banned|blocked|blacklist|not allowed|forbidden|denied|whitelist|unauthorized|not authorized|payment|paid relay|admission/.test(m)) return 'block';
+  if (/duplicate|already have/.test(m)) return 'dup';
+  return 'other';
+}
+class Bucket {
+  constructor(burst, perMin) { this.cap = burst; this.tok = burst; this.perMin = perMin; this.t = Date.now(); }
+  take(n = 1) { const t = Date.now(); this.tok = Math.min(this.cap, this.tok + (t - this.t) * this.perMin / 60000); this.t = t; if (this.tok < n) return false; this.tok -= n; return true; }
+}
 class Relay {
-  constructor(url) { this.url = url; this.ws = null; this.open = false; this.tries = 0; this.dead = false; this.until = 0; this.bo = 0; this.banned = false; this.connect(); }
-  connect() {
-    if (this.dead) return;
-    try { this.ws = new WebSocket(this.url); } catch (e) { log('✗', this.url, e.message); return this.retry(); }
-    this.ws.onopen = () => { this.open = true; this.tries = 0; log('✓ เชื่อมต่อ', this.url); monAdd('dim', '• รีเลย์ ' + this.host() + ' เชื่อมต่อแล้ว'); updRelays(); this.sub(); requestStatus(); };
-    this.ws.onmessage = (m) => this.onMsg(m.data);
-    this.ws.onclose = () => { if (this.open) monAdd('warn', '• รีเลย์ ' + this.host() + ' หลุด — กำลังต่อใหม่'); this.open = false; updRelays(); this.retry(); };
-    this.ws.onerror = () => { log('✗ error', this.url); };
+  constructor(url, idx) {
+    this.url = url; this.idx = idx; this.ws = null; this.st = 'idle'; this.wanted = false;
+    this.until = 0; this.since = 0; this.thr = 0; this.penAt = 0; this.fails = 0; this.flaps = 0; this.rate = 0; this.blocks = 0; this.boN = 0;
+    this.sent = 0; this.heard = 0; this.okN = 0; this.noN = 0; this.why = '';
   }
   host() { return this.url.replace(/^wss?:\/\//i, '').replace(/\/.*$/, ''); }
-  sub() {
-    if (!this.open) return;
-    this.ws.send(JSON.stringify(['REQ', 'nostrdash',
-      { kinds: [K_STATUS, K_NOTIFY], authors: pks(), since: now() - 120 },
-      { kinds: [K_REPLY], authors: pks(), '#p': [mePk], since: now() - 120 }]));
+  get open() { return this.st === 'up'; }
+  canPublish() { return this.st === 'up' && this.ws && this.ws.readyState === 1 && Date.now() >= this.thr; }
+  canConnect(t) { return this.st === 'idle' || ((this.st === 'backoff' || this.st === 'blocked') && t >= this.until); }
+  score() { return this.rate * 4 + this.blocks * 10 + this.fails * 2 + (this.st === 'up' ? 0 : this.st === 'connecting' ? 1 : 3) - (Date.now() - this.heard < 300000 ? 5 : 0); }
+  connect() {
+    const t = Date.now(); this.st = 'connecting'; this.since = t; let ws;
+    try { ws = this.ws = new WebSocket(this.url); } catch (e) { log('✗', this.url, e.message); this.ws = null; return this.dropped(t); }
+    ws.onopen = () => {
+      if (this.ws !== ws) return; const n = Date.now(); const first = !relays.some(r => r !== this && r.st === 'up');
+      this.st = 'up'; this.since = n; log('✓ เชื่อมต่อ', this.url); monAdd('dim', '• รีเลย์ ' + this.host() + ' เชื่อมต่อแล้ว'); updRelays(); this.sub();
+      if (first) requestStatus(0);
+    };
+    ws.onmessage = (m) => { if (this.ws === ws) this.onMsg(m.data); };
+    ws.onclose = () => { if (this.ws !== ws) return; this.ws = null; const was = this.st; this.dropped(Date.now()); if (was === 'up') monAdd('warn', '• รีเลย์ ' + this.host() + ' หลุด — ' + (this.st === 'blocked' ? 'อาการโดนตัดซ้ำๆ พักรีเลย์นี้' : 'ต่อใหม่แบบถ่วงเวลา')); updRelays(); };
+    ws.onerror = () => { log('✗ error', this.url); };
   }
-  retry() { if (this.dead) return; const d = Math.min(30000, 1000 * 2 ** Math.min(this.tries++, 5)); setTimeout(() => this.connect(), d); }
-  send(obj) { if (this.open) { this.ws.send(JSON.stringify(obj)); return true; } return false; }
-  close() { this.dead = true; this.open = false; try { this.ws && this.ws.close(); } catch (_) {} }
+  dropped(t) {                       // ซ็อกเก็ตหลุด/ต่อไม่ติด
+    if (this.st === 'up') { if (t - this.since < FLAP_MS) { this.flaps++; this.fails++; } else { this.flaps = 0; this.fails = 0; this.boN = 0; } }
+    else if (this.st === 'connecting') this.fails++;
+    else return;
+    if (this.flaps >= FLAP_LIMIT) return this.block(t, 1, 'ต่อติดแล้วถูกตัดซ้ำๆ');
+    this.st = 'backoff'; this.thr = 0; this.until = t + jitter(Math.min(BACKOFF_MAX, BASE_MS * 2 ** Math.min(this.boN++, 20)));
+  }
+  block(t, heavy, why) {
+    this.blocks = Math.min(this.blocks + 1, 250); const lvl = (this.blocks > 1 ? this.blocks - 1 : 0) + (heavy > 1 ? 2 : 0);
+    const d = Math.min(BLOCK_MAX, BLOCK_BASE * 2 ** Math.min(lvl, 12));
+    this.st = 'blocked'; this.until = t + d * (1 + Math.random() * 0.1); this.thr = 0; this.fails = 0; this.flaps = 0; this.boN = 0; this.rate = 0; this.penAt = t; this.why = why || '';
+    this.closeSock(); monAdd('bad', '✗ รีเลย์ ' + this.host() + ' ' + (why || 'ปฏิเสธ') + ' → พักรีเลย์นี้ ' + Math.round(d / 60000) + ' นาที และสลับไปใช้ตัวสำรอง');
+  }
+  verdict(v, msg) {
+    const t = Date.now();
+    if (v === 'rate') {
+      this.rate = Math.min(this.rate + 1, 250); this.penAt = t; this.why = String(msg || '').slice(0, 50);
+      if (this.rate >= RATE_STRIKES) return this.block(t, 1, 'จำกัดอัตราซ้ำหลายครั้ง');
+      const d = Math.min(RATE_PAUSE_MAX, RATE_PAUSE * 2 ** (this.rate - 1)); this.thr = Math.max(this.thr, t + d);
+      monAdd('warn', '⚠ รีเลย์ ' + this.host() + ' บอกว่าส่งถี่เกินไป → หยุดส่งไปรีเลย์นี้ ' + Math.round(d / 1000) + ' วินาที (ยังรับข้อมูลอยู่)', msg ? String(msg).slice(0, 80) : null);
+    } else if (v === 'block') this.block(t, 1, 'บล็อก/ปฏิเสธ: ' + String(msg || '').slice(0, 40));
+    else if (v === 'auth') this.block(t, 2, 'ต้องยืนยันตัวตน/ทำ PoW (ไม่รองรับ)');
+  }
+  tick(t) {
+    if ((this.rate || this.blocks) && this.penAt && t - this.penAt >= DECAY_MS) { if (this.rate) this.rate--; else this.blocks--; this.penAt = t; }
+    if (this.st === 'up' && (this.fails || this.flaps) && t - this.since >= STABLE_MS) { this.fails = 0; this.flaps = 0; this.boN = 0; }
+    if (this.st === 'connecting' && t - this.since >= CONNECT_TIMEOUT) { this.closeSock(); this.dropped(t); }
+  }
+  closeSock() { const ws = this.ws; this.ws = null; if (ws) { try { ws.close(); } catch (_) {} } }
+  stop() { this.closeSock(); if (this.st === 'up' || this.st === 'connecting') this.st = 'idle'; }
+  sub() {
+    if (!this.ws || this.ws.readyState !== 1) return;
+    this.ws.send(JSON.stringify(['REQ', 'nostrc',
+      { kinds: [K_STATUS], authors: [boardPk], since: now() - 120 },
+      { kinds: [K_REPLY], authors: [boardPk], '#p': [mePk], since: now() - 120 }]));
+  }
   onMsg(raw) {
     let m; try { m = JSON.parse(raw); } catch (_) { return; }
     if (!Array.isArray(m)) return;
     if (m[0] === 'EVENT' && m[2]) onEvent(m[2], this.url);
-    else if (m[0] === 'OK') { log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]); const c = txRelayReply(this, !!m[2], m[3]); if (!m[2] && !c) toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
-    else if (m[0] === 'NOTICE') { log('NOTICE', this.url, String(m[1] || '')); if (txClassify(m[1])) txRelayReply(this, false, m[1]); }   // CLOSED เป็นเรื่องของ REQ ไม่ใช่การส่งอีเวนต์: ไม่นับ
+    else if (m[0] === 'OK') {
+      log('OK', this.url, m[2] ? 'รับแล้ว' : 'ปฏิเสธ', m[3] || ''); cmdRelayOk(m[1], this.host(), !!m[2], m[3]);
+      if (m[2]) this.okN++; else { this.noN++; const v = classify(m[3]); if (v !== 'dup' && v !== 'other' && v !== 'invalid') this.verdict(v, m[3]); else if (v === 'other' || v === 'invalid') toast('รีเลย์ปฏิเสธ: ' + (m[3] || '?')); }
+    } else if (m[0] === 'NOTICE') { log('NOTICE', this.url, String(m[1] || '')); const v = classify(m[1]); if (v === 'rate' || v === 'block' || v === 'auth') this.verdict(v, m[1]); }
+    else if (m[0] === 'CLOSED') { const v = classify(m[2]); if (v === 'rate' || v === 'block' || v === 'auth') this.verdict(v, m[2]); }
   }
 }
+const net = { want: ACTIVE_BASE, lastWiden: 0, startAt: 0, mb: null, noPubSince: 0, okSince: 0, lastRelayHeard: 0, timer: null };
+const outB = new Bucket(8, 30);            // งบส่งคำสั่งจากหน้าเว็บ: เก็บได้ 8, เติม 30/นาที
+const mbB = new Bucket(6, 10);
 function updRelays() {
   const open = relays.filter(r => r.open).length;
-  $('#tRelay').textContent = open + '/' + relays.length;
-  $('#dRelay').className = 'dot ' + (open === 0 ? 'off' : open < relays.length ? 'mid' : 'on');
+  $('#tRelay').textContent = open + '/' + Math.min(net.want, relays.length);
+  $('#dRelay').className = 'dot ' + (open === 0 ? 'off' : open < Math.min(net.want, relays.length) ? 'mid' : 'on');
+  const pub = relays.some(r => r.canPublish()), mb = net.mb && net.mb.on;
+  $('#tLink').textContent = mb ? 'สำรอง' : pub ? 'รีเลย์' : relays.some(r => r.open) ? 'รอ' : 'ออฟไลน์';
+  $('#dLink').className = 'dot ' + (mb ? 'mid' : pub ? 'on' : 'off');
+}
+function boardSilentMs() { const t = Date.now(); return t - Math.max(lastStatusAt, net.startAt, net.lastUp || 0); }
+function rebalance() {
+  const t = Date.now();
+  for (const r of relays) r.tick(t);
+  for (const r of relays) if (r.wanted && (r.st === 'blocked' || (r.st === 'backoff' && r.fails >= FAILOVER_FAILS))) { r.wanted = false; r.closeSock(); }
+  let n = relays.filter(r => r.wanted).length;
+  while (n < net.want) {
+    let best = null, bs = 1e9;
+    for (const r of relays) { if (r.wanted || !r.canConnect(t)) continue; const sc = r.score() * 16 + r.idx; if (sc < bs) { bs = sc; best = r; } }
+    if (!best) break; best.wanted = true; n++;
+  }
+  while (n > net.want) {
+    const w = relays.filter(r => r.wanted).sort((a, b) => b.score() - a.score())[0]; w.wanted = false; w.stop(); n--;
+  }
+  for (const r of relays) { if (r.wanted && r.canConnect(t)) r.connect(); else if (!r.wanted && (r.st === 'up' || r.st === 'connecting')) r.stop(); }
+  if (relays.some(r => r.open)) net.lastUp = t;
+}
+function netTick() {
+  rebalance(); const t = Date.now(); const up = relays.some(r => r.open);
+  // ฟังรีเลย์เพิ่มถ้าไม่ได้ยินบอร์ดเลย (บอร์ดอาจย้ายไปรีเลย์ตัวอื่นหลังโดนบล็อก) แล้วหดกลับเมื่อได้ยินเสถียร
+  if (up && boardSilentMs() > Math.max(45000, hbMs * 1.5) && t - net.lastWiden > 20000 && net.want < relays.length) { net.want++; net.lastWiden = t; monAdd('info', '… ไม่ได้ยินบอร์ด ลองฟังรีเลย์เพิ่มอีก 1 ตัว (บอร์ดอาจย้ายรีเลย์)'); }
+  else if (net.want > ACTIVE_BASE && lastStatusAt && t - lastStatusAt < 20000 && t - net.lastWiden > 120000) { net.want--; net.lastWiden = t; }
+  // ช่องทางสำรอง
+  const mb = net.mb; if (mb) {
+    const pub = relays.some(r => r.canPublish());
+    if (pub) { if (!net.okSince) net.okSince = t; net.noPubSince = 0; } else { net.okSince = 0; if (!net.noPubSince) net.noPubSince = t; }
+    if (!mb.on) { if (mb.cfgOn && ((net.noPubSince && t - net.noPubSince > MB_ON_AFTER) || (up && boardSilentMs() > MB_SILENT_AFTER && t - net.startAt > MB_SILENT_AFTER))) mb.start(); }
+    else if (net.okSince && t - net.okSince > MB_OFF_AFTER && t - net.lastRelayHeard < 20000 && boardSilentMs() < 20000) mb.stop();
+  }
+  updRelays(); flushOut();
+}
+// กล่องจดหมาย HTTP (รูปแบบ ntfy): หน้าเว็บ→บอร์ด POST <base>/<topic>-c , บอร์ด→หน้าเว็บ ฟังจาก <base>/<topic>-s/sse  (อีเวนต์เซ็นเหมือนเดิมทุกอย่าง)
+class Mailbox {
+  constructor(base, on) { this.base = String(base || '').replace(/\/+$/, ''); this.cfgOn = !!on && /^https?:\/\//i.test(this.base); this.on = false; this.es = null; this.lastId = ''; this.fails = 0; this.backUntil = 0; this.retry = null; this.posts = 0; this.rx = 0; this.err = ''; }
+  topic(s) { return 'nostrc-' + boardPk.slice(0, 32) + '-' + s; }
+  shutdown() { this.on = false; clearTimeout(this.retry); if (this.es) { try { this.es.close(); } catch (_) {} this.es = null; } }
+  start() { this.on = true; this.fails = 0; monAdd('warn', '⇄ รีเลย์ส่งไม่ได้ → เปิดช่องทางสำรอง (กล่องจดหมาย HTTP ' + this.base.replace(/^https?:\/\//, '') + ')'); this.listen(); updRelays(); requestStatus(0); }
+  stop() { this.on = false; clearTimeout(this.retry); if (this.es) { try { this.es.close(); } catch (_) {} this.es = null; } monAdd('ok', '⇄ รีเลย์กลับมาใช้ได้ → ปิดช่องทางสำรอง'); updRelays(); }
+  listen() {
+    if (!this.on || this.es) return;
+    const url = this.base + '/' + this.topic('s') + '/sse?since=' + (this.lastId || '2m');
+    let es; try { es = this.es = new EventSource(url); } catch (e) { return this.fail(); }
+    es.onopen = () => { this.fails = 0; };
+    es.onmessage = (m) => {
+      try { const j = JSON.parse(m.data); if (j.event !== 'message') return; if (j.id) this.lastId = j.id; this.rx++; const ev = JSON.parse(j.message); onEvent(ev, 'mailbox'); } catch (_) {}
+    };
+    es.onerror = () => { try { es.close(); } catch (_) {} if (this.es === es) this.es = null; this.fail(); };   // ปิดเอง ไม่ให้ EventSource ต่อใหม่รัวๆ
+  }
+  fail() { this.fails++; this.err = 'เชื่อมต่อไม่ได้'; if (!this.on) return; clearTimeout(this.retry); this.retry = setTimeout(() => this.listen(), jitter(Math.min(120000, 3000 * 2 ** Math.min(this.fails, 6)))); }
+  async post(ev) {
+    if (Date.now() < this.backUntil || !mbB.take()) return false;
+    try {
+      const r = await fetch(this.base + '/' + this.topic('c'), { method: 'POST', body: JSON.stringify(ev) });
+      if (r.status === 429) { this.backUntil = Date.now() + 60000; this.err = 'ถูกจำกัดอัตรา (429)'; return false; }
+      if (!r.ok) { this.backUntil = Date.now() + 15000; this.err = 'HTTP ' + r.status; return false; }
+      this.posts++; return true;
+    } catch (e) { this.backUntil = Date.now() + 15000; this.err = 'ส่งไม่ได้'; return false; }
+  }
 }
 function connectAll() {
-  relays.splice(0).forEach(r => r.close()); seen.clear();
-  for (const u of RELAYS) relays.push(new Relay(u));
-  updRelays();
+  clearInterval(net.timer); relays.splice(0).forEach(r => r.stop()); seen.clear();
+  if (net.mb) net.mb.shutdown();
+  const cfgN = loadNet(); cfgN.pool.forEach((u, i) => relays.push(new Relay(u, i)));
+  net.mb = new Mailbox(cfgN.mailbox, cfgN.mailboxOn); net.want = Math.min(ACTIVE_BASE, relays.length); net.startAt = Date.now(); net.lastUp = 0; net.noPubSince = 0; net.okSince = 0; net.lastWiden = 0;
+  updRelays(); netTick(); net.timer = setInterval(netTick, 1000);
 }
-function broadcast(ev) { let n = 0; for (const r of relays) if (relayOpen(r) && r.send(['EVENT', ev])) n++; return n; }
+// ส่งไปรีเลย์ที่ "ส่งได้" ทุกตัว; ถ้าไม่มีเลย (หรือบอร์ดเงียบนาน/ช่องทางสำรองเปิดอยู่) ส่งซ้ำทางกล่องจดหมายด้วย (บอร์ดตัดคำสั่งซ้ำด้วย id)
+function deliver(ev) {
+  let n = 0; const msg = JSON.stringify(['EVENT', ev]);
+  for (const r of relays) if (r.canPublish()) { try { r.ws.send(msg); r.sent++; n++; } catch (_) {} }
+  const mb = net.mb;
+  if (mb && mb.cfgOn && (n === 0 || mb.on || boardSilentMs() > 30000)) mb.post(ev).then(ok => { if (ok) log('→ กล่องจดหมาย', ev.id.slice(0, 8)); });
+  return n + ((mb && mb.cfgOn && (n === 0 || mb.on)) ? 1 : 0);
+}
+function canSendAny() { return relays.some(r => r.canPublish()) || (net.mb && net.mb.cfgOn && net.mb.on); }
 
 // ---------- รับอีเวนต์ ----------
 function onEvent(ev, url) {
   if (!ev || typeof ev.id !== 'string' || seen.has(ev.id)) return;
-  const dev = root.devs.find(d => d.pk === ev.pubkey); if (!dev) return;
+  if (ev.pubkey !== boardPk) return;
   if (!NL.verifyEvent(ev)) { log('✗ ลายเซ็น/ไอดีไม่ถูกต้อง จาก', url); if (Date.now() - lastBadSig > 10000) { lastBadSig = Date.now(); monAdd('bad', '✗ ทิ้งอีเวนต์ที่อ้างว่ามาจากบอร์ดแต่ลายเซ็นไม่ถูกต้อง (' + url.replace(/^wss?:\/\//i, '') + ')'); } return; }
   seen.add(ev.id); if (seen.size > 600) seen.delete(seen.values().next().value);
+  if (url !== 'mailbox') { const rl = relays.find(x => x.url === url); if (rl) rl.heard = Date.now(); net.lastRelayHeard = Date.now(); }
   if (Math.abs(now() - ev.created_at) > MAX_SKEW) { log('ทิ้งอีเวนต์เวลาเพี้ยน', String(ev.created_at - now()) + 's'); return; }
   let body; try { body = JSON.parse(ev.content); } catch (_) { body = { text: String(ev.content).slice(0, 200) }; }
-  if (ev.kind === K_STATUS) onStatus(body, ev, dev); else if (ev.kind === K_REPLY) onReply(body, ev); else if (ev.kind === K_NOTIFY) onNotify(body, ev, dev);
+  if (ev.kind === K_STATUS) onStatus(body, ev); else if (ev.kind === K_REPLY) onReply(body, ev);
 }
 function flatten(o, prefix, out) {
   for (const [k, v] of Object.entries(o)) {
@@ -563,22 +650,25 @@ function flatten(o, prefix, out) {
   }
   return out;
 }
-function onStatus(body, ev, dev) {
-  dev.last = Date.now(); const ds = dev.ds;
+function onStatus(body, ev) {
+  lastStatusAt = Date.now();
+  const hbTag = (ev.tags || []).find(t => t[0] === 'hb'); if (hbTag) { const v = Number(hbTag[1]); if (v > 0 && v < 3600) hbMs = v * 1000; }
+  const nameTag = (ev.tags || []).find(t => t[0] === 'name');
+  if (nameTag && nameTag[1]) $('#boardName').textContent = '· ' + String(nameTag[1]).slice(0, 40);
   if (!body || typeof body !== 'object') return;
   const flat = flatten(body, '', {}); const t = Date.now(); const changed = [];
   const ctlChanged = [];
   for (const [k, v] of Object.entries(flat)) {
     const old = ds[k];
-    if (old && old.v !== v && dev.widgets.some(w => w.key === k && isControl(w.type))) ctlChanged.push(k + ' = ' + fmt(num(v)));
+    if (old && old.v !== v && cfg.widgets.some(w => w.key === k && isControl(w.type))) ctlChanged.push(k + ' = ' + fmt(num(v)));
     ds[k] = { v, ts: t };
     const n = num(v);
-    if (isFinite(n)) { const hk = dev.id + ':' + k, a = hist[hk] || (hist[hk] = []); a.push([t, n]); if (a.length > HIST_MAX) a.splice(0, a.length - HIST_MAX); }
+    if (isFinite(n)) { const a = hist[k] || (hist[k] = []); a.push([t, n]); if (a.length > HIST_MAX) a.splice(0, a.length - HIST_MAX); }
     changed.push(k);
   }
-  for (const w of dev.widgets) if (changed.includes(w.key) && dev === D()) clearPending(w.id);
-  if (dev === D()) widgetEls.forEach(x => x.update());
-  updBoard(); cmdStatusCheck(flat, t, dev);
+  for (const w of cfg.widgets) if (changed.includes(w.key)) clearPending(w.id);
+  widgetEls.forEach(x => x.update());
+  updBoard(); cmdStatusCheck(flat, t);
   if (ctlChanged.length && !Array.from(cmds.values()).some(r => r.confirmed && t - (r.t + r.confMs) < 1500)) monAdd('info', '← สถานะจากบอร์ดเปลี่ยน: ' + ctlChanged.map(x => { const [k, v] = x.split(' = '); return pinName(k) + ' = ' + v; }).join(', '));
 }
 function onReply(body, ev) {
@@ -586,6 +676,7 @@ function onReply(body, ev) {
   const p = e && pending.get(e[1]);
   log('ตอบกลับ', JSON.stringify(body).slice(0, 200));
   if (e) cmdReply(e[1], body);
+  if (body && body.v && typeof body.v === 'object' && !Array.isArray(body.v)) onStatus(body.v, { tags: [] });   // คำตอบพกค่าจริงมาด้วย (ประหยัดอีเวนต์)
   if (p) {
     pending.delete(e[1]);
     if (body && body.ok === false) toast('บอร์ดปฏิเสธ: ' + (body.err || body.error || '?'));
@@ -593,115 +684,61 @@ function onReply(body, ev) {
   }
 }
 function updBoard() {
-  for (const d of root.devs) { const on = d.last && Date.now() - d.last < ONLINE_MS; d.up = !d.last ? '' : on ? 'on' : 'off'; if (d.last) monBoardState(d, !!on); }
-  const dv = D(), age = Date.now() - dv.last, on = dv.up === 'on';
-  $('#dBoard').className = 'dot ' + dv.up;
-  $('#tBoard').textContent = !dv.last ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
-  for (const w of dv.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', w.type === 'notify' ? false : (!on || !dv.ds[w.key])); }
-  document.querySelectorAll('#tabs .dot').forEach(e => { const d = root.devs.find(q => q.id === e.dataset.id); e.className = 'dot ' + (d ? d.up : ''); });
+  const age = Date.now() - lastStatusAt, on = lastStatusAt && age < onlineMs();
+  $('#dBoard').className = 'dot ' + (!lastStatusAt ? '' : on ? 'on' : 'off');
+  $('#tBoard').textContent = !lastStatusAt ? 'รอบอร์ด' : on ? 'ออนไลน์' : 'ออฟไลน์ ' + Math.round(age / 1000) + ' วิ';
+  for (const w of cfg.widgets) { const x = widgetEls.get(w.id); if (x) x.el.classList.toggle('stale', !on || !ds[w.key]); }
+  if (lastStatusAt) monBoardState(!!on);
 }
 
-// ---------- จำกัดอัตราการส่ง (ฝังในหน้าเว็บ ปิดไม่ได้ — ทุก EVENT ที่ออกไปหารีเลย์ต้องผ่านที่นี่) ----------
-// ถังโทเคน (ตัวเดียวทั้งหน้า): ส่งติดกันได้ BURST ครั้ง แล้ว 1 ครั้ง/REFILL_MS (ตรงกับฝั่งบอร์ด 30 ครั้ง/นาที) · คำสั่งที่ถูกชะลอจะเข้าคิว ไม่ถูกทิ้ง
-// คำสั่งคีย์เดียวกัน (สไลเดอร์/สวิตช์ pin เดิม, status ของอุปกรณ์เดิม) ที่ยังรอคิวอยู่จะถูกแทนด้วยค่าล่าสุด
-// ผู้ใช้กดเอง (prio 0) ได้ก่อนและใช้โทเคนสุดท้ายได้ · ขอสถานะอัตโนมัติ (prio 1) ต้องเหลือ RESERVE โทเคนไว้ให้ผู้ใช้
-// สิ่งที่รีเลย์ตอบเป็นเรื่องของรีเลย์ตัวนั้นเท่านั้น (ประตูรายรีเลย์) — ตัดสินจากคำนำหน้ามาตรฐาน NIP-01 ไม่ใช่คำกว้างๆ:
-//   "rate-limited: …" → หยุดส่งไปที่รีเลย์นั้น BO_MIN แล้วเพิ่มเป็นสองเท่าทุกครั้งถึง BO_MAX และคลายลงเมื่อรีเลย์รับได้อีก
-//   "banned: …"       → ข้ามรีเลย์นั้น BAN_MS (ส่งต่อไปมีแต่จะผิดซ้ำ) · รีเลย์อื่นไม่ถูกกระทบ
-const TX = Object.freeze({ BURST: 6, REFILL_MS: 2000, RESERVE: 1, BO_MIN: 10000, BO_MAX: 300000, BAN_MS: 1800000, QMAX: 40 });
-const tx = { credit: TX.BURST, last: Date.now(), q: [], timer: 0, note: 0, sent: 0, limited: 0 };
-const relayOpen = (r) => r.open && Date.now() >= r.until;             // เชื่อมต่ออยู่ และไม่ได้อยู่ในช่วงพัก/ถูกแบน
-function txRefill() { const t = Date.now(); tx.credit = Math.min(TX.BURST, tx.credit + (t - tx.last) / TX.REFILL_MS); tx.last = t; }
-function txDelay(prio) {                                   // ms จนกว่าจะส่งได้ (0 = ส่งได้เลย)
-  txRefill(); const t = Date.now(), need = prio ? 1 + TX.RESERVE : 1;
-  const live = relays.filter(r => r.open);
-  const pause = live.length && !live.some(relayOpen) ? Math.max(0, Math.min(...live.map(r => r.until)) - t) : 0;   // ทุกรีเลย์ที่ต่ออยู่กำลังพัก
-  const wait = tx.credit >= need ? 0 : Math.ceil((need - tx.credit) * TX.REFILL_MS);
-  return Math.max(pause, wait);
+// ---------- ส่งคำสั่ง (มีคิว: งบส่ง + รวมคำสั่งซ้ำ) ----------
+const OUTQ = [], lastPinSend = {};
+function sendCmd(obj, label, onDone, onFail) {
+  if (obj.cmd === 'vw') { const i = OUTQ.findIndex(q => q.obj.cmd === 'vw' && q.obj.pin === obj.pin); if (i >= 0) OUTQ.splice(i, 1); }   // สไลเดอร์ลากรัว: เก็บเฉพาะค่าล่าสุด
+  else if (OUTQ.some(q => q.obj.cmd === obj.cmd)) return 'dup';
+  OUTQ.push({ obj, label, onDone, onFail, at: Date.now() }); flushOut(); return 'queued';
 }
-function txPump() {
-  clearTimeout(tx.timer); tx.timer = 0;
-  while (tx.q.length) {
-    let i = tx.q.findIndex(j => j.prio === 0); if (i < 0) i = 0;
-    const j = tx.q[i], d = txDelay(j.prio);
-    if (d > 0) { tx.timer = setTimeout(txPump, Math.min(d, 2000) + 5); return; }
-    tx.q.splice(i, 1); tx.credit -= 1;
-    const id = j.run();
-    if (id === null) tx.credit = Math.min(TX.BURST, tx.credit + 1); else tx.sent++;   // ไม่มีรีเลย์ให้ส่ง = ไม่ได้ส่งจริง คืนโทเคน
-    j.waiters.forEach(w => w(id));
-  }
-}
-function txSubmit(key, prio, run) {
-  return new Promise(res => {
-    const waiters = [res], old = tx.q.findIndex(j => j.key === key);
-    if (old >= 0) { waiters.push(...tx.q[old].waiters); tx.q.splice(old, 1); }       // ค่าใหม่แทนค่าเก่าที่ยังไม่ได้ส่ง
-    if (tx.q.length >= TX.QMAX) {
-      const b = tx.q.findIndex(j => j.prio > 0);
-      if (b < 0) { waiters.forEach(w => w(null)); toast('คิวส่งเต็ม — รอสักครู่แล้วลองใหม่'); return; }
-      tx.q[b].waiters.forEach(w => w(null)); tx.q.splice(b, 1);
-    }
-    tx.q.push({ key, prio, run, waiters });
-    const d = txDelay(prio);
-    if (prio === 0 && d > 1500 && Date.now() - tx.note > 4000) { tx.note = Date.now(); toast('ส่งช้าลงชั่วคราวเพื่อไม่ให้รีเลย์ปฏิเสธ (รอ ~' + Math.ceil(d / 1000) + ' วิ)', 3500); }
-    txPump();
-  });
-}
-// ตัดสินจากข้อความที่รีเลย์ตอบ: 'ban' | 'limit' | '' — คำนำหน้า NIP-01 และวลีที่ชัดเจนเท่านั้น (blocked:/restricted:/error: ฯลฯ ไม่นับ)
-function txClassify(s) {
-  s = String(s || '');
-  if (/banned|blacklist/i.test(s)) return 'ban';              // เช็กก่อน: "too many rate-limit violations" คือการแบน
-  if (/^rate[- ]limited|rate[- ]limit|slow down|too fast|throttl/i.test(s)) return 'limit';
-  return '';
-}
-function txRelayReply(r, accepted, why) {
+function flushOut() {
   const t = Date.now();
-  if (accepted) { r.banned = false; if (r.bo) { r.bo = Math.floor(r.bo / 2); if (r.bo < TX.BO_MIN) r.bo = 0; } return ''; }
-  const c = txClassify(why); if (!c) return '';
-  if (c === 'ban') {
-    if (r.banned) return c;
-    r.banned = true; r.until = t + TX.BAN_MS; tx.limited++;
-    const m = 'รีเลย์ ' + r.host() + ' แบนกุญแจของหน้านี้ — ข้ามรีเลย์นี้ 30 นาที (ใช้รีเลย์อื่นต่อ) · ' + String(why).slice(0, 60);
-    log('⛔', m); monAdd('warn', '• ' + m); toast(m, 5000);
-  } else {
-    if (t < r.until) return c;                               // บ่นเรื่องเดียวกันซ้ำ = โทษครั้งเดียว
-    r.bo = r.bo ? Math.min(r.bo * 2, TX.BO_MAX) : TX.BO_MIN; r.until = t + r.bo; tx.limited++;
-    const m = 'รีเลย์ ' + r.host() + ' บอกว่าส่งถี่เกินไป — หยุดส่งไปที่รีเลย์นี้ ' + Math.round(r.bo / 1000) + ' วินาที (รีเลย์อื่นไม่กระทบ)';
-    log('⏳', m, why || ''); monAdd('warn', '• ' + m); toast(m, 4000);
+  for (let i = 0; i < OUTQ.length;) {
+    const q = OUTQ[i];
+    if (q.obj.cmd === 'vw' && t - (lastPinSend[q.obj.pin] || 0) < PIN_GAP) { i++; continue; }      // pin เดียวกันห่างกันอย่างน้อย ~1 วินาที
+    if (!canSendAny()) {
+      if (t - q.at > 12000) { OUTQ.splice(i, 1); toast('ยังไม่ได้เชื่อมต่อรีเลย์ ลองใหม่อีกครั้ง'); q.onFail && q.onFail(); } else i++;
+      continue;
+    }
+    if (!outB.take()) { i++; continue; }
+    OUTQ.splice(i, 1); doSend(q);
   }
-  txPump(); return c;
 }
-
-// ---------- ส่งคำสั่ง ----------
-async function sendCmd(obj, label, onDone, dev = D(), onSent) {
-  const key = obj.cmd + ':' + dev.id + ':' + (obj.pin == null ? '' : obj.pin);
-  return txSubmit(key, label === 'status' ? 1 : 0, () => sendCmdNow(obj, label, onDone, dev, onSent));
-}
-function sendCmdNow(obj, label, onDone, dev, onSent) {      // สร้าง+เซ็นอีเวนต์ตอนที่ถึงคิวส่งจริง (created_at จะไม่เก่าระหว่างรอ)
-  const base = { kind: K_CMD, created_at: now(), tags: [['p', dev.pk]], content: JSON.stringify(obj) };
+function doSend(q) {
+  const { obj, label, onDone, onFail } = q;
+  const base = { kind: K_CMD, created_at: now(), tags: [['p', boardPk]], content: JSON.stringify(obj) };
   const ev = NL.signEvent(base, sk);
-  const n = broadcast(ev);
-  if (!n) { toast('ยังไม่ได้เชื่อมต่อรีเลย์ ลองใหม่อีกครั้ง'); return null; }
+  const n = deliver(ev);
+  if (!n) { toast('ส่งไม่ออก ลองใหม่อีกครั้ง'); onFail && onFail(); return; }
+  if (obj.cmd === 'vw') lastPinSend[obj.pin] = Date.now();
   pending.set(ev.id, { t: Date.now(), label, onDone });
-  trackCmd(ev, obj); { const r = cmds.get(ev.id); if (r) r.dev = dev; }
+  trackCmd(ev, obj);
   setTimeout(() => pending.delete(ev.id), 15000);
-  log('→ ส่ง', base.content, '(' + n + ' รีเลย์)');
-  if (onSent) onSent();
-  return ev.id;
+  log('→ ส่ง', base.content, '(' + n + ' ช่องทาง)');
 }
-let lastStatusReq = 0;
-function requestStatus() {
-  if (Date.now() - lastStatusReq < 8000) return;
-  lastStatusReq = Date.now();
-  setTimeout(() => root.devs.forEach(d => sendCmd({ cmd: 'status' }, 'status', null, d)), 400);
+let lastStatusReq = 0, hiddenAt = 0;
+function requestStatus(minGap = 15000) {
+  const t = Date.now();
+  if (t - lastStatusReq < minGap) return false;
+  if (lastStatusAt && t - lastStatusAt < 8000) return false;                 // เพิ่งได้ยินบอร์ด ไม่ต้องถาม
+  lastStatusReq = t;
+  setTimeout(() => sendCmd({ cmd: 'status' }, 'status'), 300 + Math.random() * 1200);
+  return true;
 }
 async function sendW(w, value) {
   setPending(w.id);
-  const dv = D();
-  const id = await sendCmd({ cmd: 'vw', pin: w.key, arg: value }, 'w', (body) => {
+  const id = sendCmd({ cmd: 'vw', pin: w.key, arg: value }, 'w', (body) => {
     clearPending(w.id);
-    if (!body || body.ok !== false) dv.ds[w.key] = { v: value, ts: Date.now() };
+    if (!body || body.ok !== false) ds[w.key] = { v: value, ts: Date.now() };
     const x = widgetEls.get(w.id); if (x) x.update();
-  }, dv, () => setPending(w.id));                          // เริ่มนับเวลารอคำตอบเมื่อส่งออกจริง ไม่ใช่ตอนเข้าคิว
+  }, () => clearPending(w.id));
   if (!id) clearPending(w.id);
   return id;
 }
@@ -722,7 +759,7 @@ function cardBase(w, ...body) {
     h('button', { class: 'danger', text: 'ลบ', onclick: () => { if (confirm('ลบ "' + w.label + '" ? (' + w.key + ' จะว่างและถูกใช้ซ้ำได้)')) { cfg.widgets = cfg.widgets.filter(x => x.id !== w.id); saveCfg(); renderAll(); } } }),
     h('button', { text: '←', title: 'เลื่อนขึ้น', onclick: () => moveW(w, -1) }),
     h('button', { text: '→', title: 'เลื่อนลง', onclick: () => moveW(w, 1) }));
-  return h('div', { class: 'card' + (w.type === 'chart' || w.type === 'notify' ? ' wide' : '') },
+  return h('div', { class: 'card' + (w.type === 'chart' ? ' wide' : '') },
     h('h3', null, h('span', { text: w.label }), h('span', { class: 'pin', text: w.key })), ...body, tools);
 }
 function moveW(w, d) {
@@ -764,9 +801,9 @@ function mkSlider(w) {
   inp.addEventListener('pointerdown', () => { dragging = true; });
   inp.addEventListener('input', () => {
     show(); const t = Date.now();
-    if (t - lastSend > 500) { lastSend = t; push(); } else { clearTimeout(tmr); tmr = setTimeout(() => { lastSend = Date.now(); push(); }, 500 - (t - lastSend)); }
+    if (t - lastSend > 1200) { lastSend = t; clearTimeout(tmr); tmr = null; push(); } else { clearTimeout(tmr); tmr = setTimeout(() => { tmr = null; lastSend = Date.now(); push(); }, 1200 - (t - lastSend)); }   // ลากสไลเดอร์: ส่งไม่ถี่กว่า ~1 ครั้ง/วินาที + ค่าสุดท้ายเสมอ
   });
-  const end = () => { dragging = false; };
+  const end = () => { dragging = false; if (tmr) { clearTimeout(tmr); tmr = null; lastSend = Date.now(); push(); } };   // ปล่อยนิ้ว: ส่งค่าสุดท้ายทันที (ไม่ให้สถานะเก่าจากบอร์ดดึงสไลเดอร์กลับ)
   inp.addEventListener('change', end); inp.addEventListener('pointerup', end); inp.addEventListener('pointercancel', end);
   const el = cardBase(w, val, inp);
   function update() {
@@ -817,7 +854,7 @@ function mkChart(w) {
     const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
     const cs = getComputedStyle(document.documentElement), col = (n) => cs.getPropertyValue(n).trim() || '#888';
     const nowMs = Date.now(), span = (w.range || 0) * 1000;
-    const pts = (hist[D().id + ':' + w.key] || []).filter(p => !span || p[0] >= nowMs - span);
+    const pts = (hist[w.key] || []).filter(p => !span || p[0] >= nowMs - span);
     const rl = RANGES.find(r => r[0] === (w.range || 0))[1];
     sub.textContent = pts.length ? rl + ' · ' + pts.length + ' จุด · แตะเพื่อเปลี่ยนช่วง' : 'ยังไม่มีข้อมูล (เก็บเมื่อเปิดหน้านี้ไว้และบอร์ดส่งค่า)';
     if (pts.length < 1) return;
@@ -836,129 +873,29 @@ function mkChart(w) {
   }
   return { el, update };
 }
-// ---------- แจ้งเตือนข้อความ (บอร์ด → หน้าเว็บ, kind 21081) ----------
-const NOTE_MAX = 100;
-let notes = store.get('nostrdash.notes', {});     // { 'devId:Vn': [[เวลา(ms), ข้อความ, id อีเวนต์], ...] }
-const noteKey = (dev, pin) => dev.id + ':' + pin;
-let unread = 0, actx = null;
-const soundOn = () => store.get('nostrdash.snd', true) !== false;
-document.addEventListener('pointerdown', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (_) {} }, { once: true });
-function beep() {
-  if (!soundOn() || !actx) return;
-  try {
-    const o = actx.createOscillator(), g = actx.createGain(); o.type = 'sine'; o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.25, actx.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.35);
-    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.4);
-  } catch (_) {}
-}
-function onNotify(body, ev, dev) {
-  if (!body || typeof body !== 'object' || typeof body.text !== 'string') return;
-  const pin = /^V\d{1,3}$/.test(String(body.pin)) ? String(body.pin) : 'V0';
-  const text = body.text.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ').slice(0, 300).trim(); if (!text) return;
-  dev.last = Date.now();
-  const k = noteKey(dev, pin), a = notes[k] || (notes[k] = []);
-  if (a.some(x => x[2] === ev.id)) return;                      // ซ้ำ (โหลดหน้าใหม่แล้วรีเลย์ส่งซ้ำ)
-  const t = Date.now(); a.push([t, text, ev.id, 1]); if (a.length > NOTE_MAX) a.splice(0, a.length - NOTE_MAX);
-  store.set('nostrdash.notes', notes);
-  const w = dev.widgets.find(x => x.key === pin), who = (root.devs.length > 1 ? dev.name + ' · ' : '') + (w ? w.label : pin);
-  monAdd('warn', '✉ ' + who + ': ' + text);
-  if (dev === D()) widgetEls.forEach(x => x.update());
-  updBoard(); notifyUser(who, text);
-}
-function notifyUser(who, text) {
-  toast('🔔 ' + who + ': ' + text, 5000);
-  try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch (_) {}
-  beep();
-  if (document.hidden) {
-    unread++; document.title = '(' + unread + ') NostrDash แดชบอร์ด';
-    try { if ('Notification' in window && Notification.permission === 'granted') new Notification('🔔 ' + who, { body: text, tag: 'nostrdash' }); } catch (_) {}   // Android Chrome ไม่รองรับ constructor นี้ — ใช้สั่น/เสียง/ชื่อแท็บแทน
-  }
-}
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { unread = 0; document.title = 'NostrDash แดชบอร์ด'; widgetEls.forEach(x => x.update()); } });
-function mkNotify(w) {
-  const list = h('div', { class: 'nlist' }), sub = h('div', { class: 'sub' });
-  const bell = h('button', { text: '🔔 เปิดแจ้งเตือนเบราว์เซอร์', onclick: async () => {
-    try { const r = await Notification.requestPermission(); toast(r === 'granted' ? 'เปิดแจ้งเตือนแล้ว (ใช้ได้ตอนเปิดหน้านี้ค้างไว้)' : 'ไม่ได้รับอนุญาต'); } catch (_) { toast('เบราว์เซอร์นี้ไม่รองรับ'); }
-    update();
-  } });
-  const snd = h('button', { onclick: () => { store.set('nostrdash.snd', !soundOn()); if (soundOn()) beep(); update(); } });
-  const clr = h('button', { text: 'ล้าง', onclick: () => { if (confirm('ล้างข้อความแจ้งเตือนของ "' + w.label + '" ?')) { delete notes[noteKey(D(), w.key)]; store.set('nostrdash.notes', notes); update(); } } });
-  const el = cardBase(w, list, sub, h('div', { class: 'ntool' }, bell, snd, clr));
-  function update() {
-    const a = notes[noteKey(D(), w.key)] || [];
-    list.replaceChildren();
-    if (!a.length) list.append(h('div', { class: 'nempty', text: 'ยังไม่มีข้อความ — บอร์ดใช้ NostrDash.notify(PIN_' + w.key + ', "ข้อความ")' }));
-    for (let i = a.length - 1; i >= 0; i--) {
-      const x = a[i], d = new Date(x[0]), sameDay = d.toDateString() === new Date().toDateString();
-      list.append(h('div', { class: 'nrow' + (x[3] && !document.hidden && Date.now() - x[0] < 60000 ? ' new' : '') }, h('span', { class: 'nt', text: (sameDay ? '' : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ') + d.toLocaleTimeString('th-TH') }), x[1]));
-    }
-    sub.textContent = a.length ? a.length + ' ข้อความ (เก็บในเบราว์เซอร์นี้ ล่าสุดอยู่บนสุด)' : 'ข้อความเก็บเฉพาะตอนเปิดหน้านี้ไว้ — รีเลย์ไม่เก็บอีเวนต์';
-    bell.style.display = 'Notification' in window && Notification.permission === 'default' ? '' : 'none';
-    snd.textContent = soundOn() ? '🔊 เสียง: เปิด' : '🔇 เสียง: ปิด';
-  }
-  return { el, update };
-}
-const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart, notify: mkNotify };
+const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart };
 
-function renderTabs() {
-  const t = $('#tabs'); t.replaceChildren(); t.classList.toggle('show', root.devs.length > 1);
-  for (const d of root.devs) t.append(h('button', { class: d.id === root.act ? 'act' : '', title: d.name, onclick: () => { if (root.act === d.id) return; root.act = d.id; saveCfg(); renderAll(); } },
-    h('span', { class: 'dot ' + d.up, 'data-id': d.id }), d.name));
-}
 function renderAll() {
-  const dv = D(), g = $('#grid'); g.replaceChildren(); widgetEls.clear();
-  const inner = h('div', { class: 'grid devbody' });
-  g.append(h('div', { class: 'card dev' },
-    h('div', { class: 'devhead' }, h('span', { text: '📟' }), h('b', { text: dv.name }), h('button', { text: 'ตั้งชื่อ / ลบ', onclick: () => openDevDlg(dv) })), inner));
-  for (const w of dv.widgets) { const x = MK[w.type](w); widgetEls.set(w.id, x); inner.append(x.el); x.update(); }
-  if (!dv.widgets.length) {
-    inner.append(h('div', { class: 'hero' },
+  const g = $('#grid'); g.replaceChildren(); widgetEls.clear();
+  for (const w of cfg.widgets) { const x = MK[w.type](w); widgetEls.set(w.id, x); g.append(x.el); x.update(); }
+  if (!cfg.widgets.length) {
+    g.append(h('div', { class: 'hero' },
       h('h2', { text: 'เริ่มต้นใช้งาน' }),
       h('ol', null,
         h('li', { text: 'กด ＋ สร้างสวิตช์ / ช่องแสดงค่าที่ต้องการ' }),
         h('li', { text: 'กด 🔌 คัดลอกโค้ดเชื่อมบอร์ดไปใส่ในสเก็ตช์' }),
-        h('li', { text: 'อัปโหลดเข้าบอร์ด แล้วการ์ดนี้จะออนไลน์เอง' })),
+        h('li', { text: 'อัปโหลดเข้าบอร์ด แล้วหน้านี้จะออนไลน์เอง' })),
       h('div', null, h('button', { class: 'primary', text: '＋ เพิ่ม widget', onclick: () => openWidgetDlg(null) }))));
   }
-  inner.append(h('div', { class: 'card addcard', onclick: () => openWidgetDlg(null) }, h('div', { class: 'big', text: '＋' }), h('div', { text: 'เพิ่ม widget' })));
-  $('#boardName').textContent = root.devs.length > 1 ? '· ' + dv.name : '';
-  renderTabs(); updBoard();
+  g.append(h('div', { class: 'card addcard', onclick: () => openWidgetDlg(null) }, h('div', { class: 'big', text: '＋' }), h('div', { text: 'เพิ่ม widget' })));
+  updBoard();
 }
-
-// ---------- อุปกรณ์ (1 อุปกรณ์ = 1 การ์ด) ----------
-let editingD = null;
-function openDevDlg(d) {
-  editingD = d; $('#dvTitle').textContent = d ? 'ตั้งชื่ออุปกรณ์' : 'เพิ่มอุปกรณ์';
-  $('#dvName').value = d ? d.name : 'อุปกรณ์ ' + (root.devs.length + 1);
-  $('#dvDel').style.display = d && root.devs.length > 1 ? '' : 'none'; $('#dvScanRow').style.display = d ? 'none' : '';
-  $('#dlgDev').showModal(); $('#dvName').select();
-}
-$('#bDev').onclick = () => openDevDlg(null);
-$('#dvClose').onclick = () => $('#dlgDev').close();
-$('#dvSave').onclick = () => {
-  const name = $('#dvName').value.trim().slice(0, 30) || 'อุปกรณ์';
-  if (editingD) editingD.name = name;
-  else {
-    if (root.devs.length >= 20) { toast('เพิ่มได้สูงสุด 20 อุปกรณ์'); return; }
-    const d = initDev({ id: uid(), name, bsk: NL.genSecret(), widgets: [] });
-    root.devs.push(d); root.act = d.id; relays.forEach(r => r.sub()); requestStatus();
-    toast('เพิ่มแล้ว — เพิ่ม widget แล้วกด 🔌 เพื่อคัดลอกโค้ดของอุปกรณ์นี้', 4000);
-  }
-  saveCfg(); $('#dlgDev').close(); renderAll();
-};
-$('#dvDel').onclick = () => {
-  if (!editingD || root.devs.length < 2 || !confirm('ลบอุปกรณ์ "' + editingD.name + '" พร้อม widget ทั้งหมด?')) return;
-  for (const k of Object.keys(hist)) if (k.startsWith(editingD.id + ':')) delete hist[k];
-  for (const k of Object.keys(notes)) if (k.startsWith(editingD.id + ':')) delete notes[k]; store.set('nostrdash.notes', notes);
-  root.devs = root.devs.filter(d => d !== editingD); root.act = root.devs[0].id;
-  relays.forEach(r => r.sub()); saveCfg(); $('#dlgDev').close(); renderAll();
-};
 
 // ---------- เพิ่ม/แก้ widget ----------
 let editingW = null;
 function wTypeUi() {
   const t = $('#wType').value;
-  $('#wRange').style.display = (t === 'switch' || t === 'notify') ? 'none' : '';
+  $('#wRange').style.display = t === 'switch' ? 'none' : '';
   $('#wStepBox').style.display = t === 'slider' ? '' : 'none';
 }
 function openWidgetDlg(w) {
@@ -988,37 +925,38 @@ $('#wSave').onclick = () => {
 };
 
 // ---------- โค้ดเชื่อมบอร์ด ----------
+function relayDefs() { return loadNet().pool.map(u => u.replace(/^wss:\/\//i, '')).join(','); }
 function genCode() {
-  const L = [];
-  L.push('#include <NostrDash.h>');
+  const L = [], nn = loadNet();
+  L.push('#include <NostrC.h>');
   L.push('');
-  L.push('// ===== จากหน้าเว็บ NostrDash — ห้ามอัปโหลดขึ้น GitHub =====');
-  L.push('// อุปกรณ์: ' + D().name);
-  L.push('#define NOSTRDASH_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
-  L.push('#define NOSTRDASH_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
-  L.push('#define NOSTRDASH_RELAYS       "' + RELAYS.map(u => u.replace(/^wss?:\/\//i, '')).join(',') + '"');
+  L.push('// ===== จากหน้าเว็บ NostrC — ห้ามอัปโหลดขึ้น GitHub =====');
+  L.push('#define NOSTRC_BOARD_SECRET "' + cfg.bsk + '"  // กุญแจลับของบอร์ด');
+  L.push('#define NOSTRC_CONTROLLER   "' + mePk + '"  // กุญแจหน้าเว็บ (ผู้สั่งที่อนุญาต)');
+  L.push('#define NOSTRC_RELAYS       "' + relayDefs() + '"  // 2 ตัวแรกใช้ก่อน ที่เหลือสำรอง (เหมือนหน้าเว็บ)');
+  L.push('#define NOSTRC_MAILBOX      "' + (nn.mailboxOn ? nn.mailbox : '') + '"  // ช่องทางสำรองเมื่อรีเลย์ใช้ไม่ได้ ("" = ปิด)');
   L.push('');
   if (cfg.widgets.length) {
     L.push('// ===== ตำแหน่ง (pin) ของแต่ละ widget =====');
     const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : w.type === 'notify' ? ' [บอร์ดส่งข้อความ]' : ' [บอร์ดส่ง]'));
+    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : ' [บอร์ดส่ง]'));
   } else L.push('// (ยังไม่มี widget — กด ＋ ในหน้าเว็บก่อน)');
   return L.join('\n');
 }
 function genUse() {
   const L = [];
   const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
-  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type) && w.type !== 'notify').sort(byPin), no = cfg.widgets.filter(w => w.type === 'notify').sort(byPin);
+  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type) && w.type !== 'chart' || false).sort(byPin);
+  const ch = cfg.widgets.filter(w => w.type === 'chart' && !oo.some(o => o.key === w.key)).sort(byPin);
   L.push('void setup() {');
-  for (const w of so) L.push('  NostrDash.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
-  for (const w of so) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
-  L.push('  NostrDash.begin("ชื่อWiFi", "รหัสWiFi", NOSTRDASH_BOARD_SECRET, NOSTRDASH_CONTROLLER, NOSTRDASH_RELAYS);');
+  for (const w of so) L.push('  NostrC.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
+  for (const w of so) L.push('  NostrC.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
+  for (const w of [...oo, ...ch]) L.push('  NostrC.onRead(PIN_' + w.key + ', [] { return 0; }, 0.5f);  // ' + w.label + ': ใส่ค่าที่อ่านได้ (0.5 = ส่งเมื่อเปลี่ยนเกิน 0.5 ลดอีเวนต์)');
+  L.push('  NostrC.begin("ชื่อWiFi", "รหัสWiFi", NOSTRC_BOARD_SECRET, NOSTRC_CONTROLLER, NOSTRC_RELAYS, "board-1", NOSTRC_MAILBOX);');
   L.push('}');
   L.push('');
   L.push('void loop() {');
-  L.push('  NostrDash.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ');
-  for (const w of oo) L.push('  NostrDash.set(PIN_' + w.key + ', 0);  // ใส่ค่าที่อ่านได้: ' + w.label);
-  for (const w of no) L.push('  // เมื่อเกิดเหตุการณ์: NostrDash.notify(PIN_' + w.key + ', "ข้อความ");  // ' + w.label + ' (หรือ notifyf(PIN_' + w.key + ', "อุณหภูมิ %.1f", t))');
+  L.push('  NostrC.loop();   // เรียกบ่อยๆ ห้ามใช้ delay() ยาวๆ — ไม่ต้องเรียก set() ใน loop แล้ว');
   L.push('}');
   return L.join('\n');
 }
@@ -1026,7 +964,7 @@ function openConn() {
   $('#cCode').value = genCode(); $('#cUse').value = genUse();
   const tb = $('#cPins'); tb.replaceChildren();
   const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : w.type === 'notify' ? 'บอร์ดส่งข้อความ' : 'บอร์ดส่งค่า' })));
+  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : 'บอร์ดส่งค่า' })));
   if (!sorted.length) tb.append(h('tr', null, h('td', { colspan: '3', text: 'ยังไม่มี widget' })));
   $('#dlgConn').showModal(); $('#cCopy').focus(); $('#cCode').scrollTop = 0;
 }
@@ -1035,6 +973,35 @@ async function copyText(text, ta) {
   catch (_) { if (ta) { ta.focus(); ta.select(); try { document.execCommand('copy'); toast('คัดลอกแล้ว'); return; } catch (__) {} } toast('คัดลอกไม่ได้ — เลือกข้อความแล้วคัดลอกเอง'); }
 }
 $('#bConn').onclick = openConn;
+// ---------- สุขภาพการเชื่อมต่อ ----------
+const ST_TH = { idle: 'ว่าง/สำรอง', connecting: 'กำลังต่อ', up: 'ออนไลน์', backoff: 'รอต่อใหม่', blocked: 'พักรีเลย์นี้' };
+let netTimer = null;
+function renderNet() {
+  const tb = $('#nRows'); tb.replaceChildren(); const t = Date.now();
+  for (const r of relays) {
+    let note = r.why || '';
+    if (r.st === 'up' && t < r.thr) note = 'หยุดส่ง ' + Math.ceil((r.thr - t) / 1000) + ' วิ (รีเลย์บอกว่าถี่เกิน) ' + note;
+    else if ((r.st === 'backoff' || r.st === 'blocked') && r.until > t) note = 'ลองใหม่ใน ' + (r.until - t > 90000 ? Math.round((r.until - t) / 60000) + ' นาที' : Math.ceil((r.until - t) / 1000) + ' วิ') + ' ' + note;
+    tb.append(h('tr', null, h('td', { text: (r.wanted ? '● ' : '○ ') + r.host() }), h('td', { text: ST_TH[r.st] || r.st }), h('td', { text: String(r.sent) }), h('td', { text: note })));
+  }
+  const mb = net.mb;
+  $('#nMb').textContent = !mb || !mb.cfgOn ? 'ช่องทางสำรอง: ปิดอยู่' : 'ช่องทางสำรอง (' + mb.base.replace(/^https?:\/\//, '') + '): ' + (mb.on ? 'กำลังใช้งาน' : 'สแตนด์บาย') + ' · ส่ง ' + mb.posts + ' รับ ' + mb.rx + (mb.err ? ' · ' + mb.err : '');
+}
+$('#bNet').onclick = () => {
+  const n = loadNet(); $('#nPool').value = n.pool.join('\n'); $('#nMail').value = n.mailbox; $('#nMailOn').checked = n.mailboxOn;
+  renderNet(); clearInterval(netTimer); netTimer = setInterval(renderNet, 1000); $('#dlgNet').showModal();
+};
+$('#nClose').onclick = () => $('#dlgNet').close();
+$('#dlgNet').addEventListener('close', () => clearInterval(netTimer));
+$('#nReset').onclick = () => { store.del('nostrc.net'); $('#dlgNet').close(); connectAll(); toast('คืนค่าเริ่มต้นแล้ว — คัดลอกโค้ด 🔌 ใหม่ไปบอร์ดด้วย'); };
+$('#nSave').onclick = () => {
+  const lines = $('#nPool').value.split(/\s+/).map(x => x.trim()).filter(Boolean);
+  const bad = lines.find(u => !goodRelay(u)); if (bad) return toast('รีเลย์ไม่ถูกต้อง: ' + bad);
+  if (location.protocol === 'https:') { const w = lines.find(u => /^ws:\/\//i.test(u) && !/^ws:\/\/(localhost|127\.0\.0\.1)/i.test(u)); if (w) return toast('หน้า https เชื่อม ws:// ไม่ได้ (เบราว์เซอร์บล็อก) ใช้ wss:// หรือเปิดหน้านี้ผ่าน http'); }
+  const mail = $('#nMail').value.trim(); if (mail && !/^https?:\/\/[^\s]+$/i.test(mail)) return toast('URL ช่องทางสำรองไม่ถูกต้อง');
+  store.set('nostrc.net', { pool: lines.slice(0, 6), mailbox: mail || DEFAULT_MAILBOX, mailboxOn: $('#nMailOn').checked && !!mail });
+  $('#dlgNet').close(); connectAll(); toast('บันทึกแล้ว — คัดลอกโค้ด 🔌 ใหม่ไปอัปโหลดบอร์ดด้วย');
+};
 $('#cClose').onclick = () => $('#dlgConn').close();
 $('#cCopy').onclick = () => copyText($('#cCode').value, $('#cCode'));
 const b64e = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -1047,131 +1014,22 @@ function textDlg(title, text, readonly, ok) {
 }
 $('#cExp').onclick = () => {
   if (!confirm('รหัสนี้มีกุญแจลับ ใครได้ไปก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return;
-  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrdash1.' + b64e({ sk, act: root.act, devs: root.devs.map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) }), true);
+  textDlg('รหัสย้ายเครื่อง (ห้ามเผยแพร่)', 'nostrc1.' + b64e({ bsk: cfg.bsk, sk, widgets: cfg.widgets }), true);
 };
 $('#cImp').onclick = () => textDlg('วางรหัสย้ายเครื่อง', '', false, async (v) => {
   try {
-    const j = b64d(String(v).trim().replace(/^(nostrdash1|nvpn1)\./, ''));
-    const list = Array.isArray(j.devs) ? j.devs : [{ name: 'อุปกรณ์ 1', bsk: j.bsk, widgets: j.widgets }];
-    if (!isHex64(j.sk) || !list.length || !list.every(d => d && isHex64(d.bsk))) throw new Error('กุญแจไม่ถูกต้อง');
-    root = { v: 3, devs: list, act: j.act }; sk = j.sk; store.set('nostrdash.sk', sk);
+    const j = b64d(String(v).trim().replace(/^(nostrc1|nostrdash1|nvpn1)\./, ''));
+    if (!isHex64(j.bsk) || !isHex64(j.sk)) throw new Error('กุญแจไม่ถูกต้อง');
+    cfg = { v: 2, bsk: j.bsk, widgets: j.widgets || [] }; sk = j.sk; store.set('nostrc.sk', sk);
     $('#dlgConn').close(); await start(); toast('นำเข้าแล้ว');
   } catch (e) { toast('รหัสไม่ถูกต้อง: ' + e.message); }
 });
-const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((ok, no) => {
-  const e = document.createElement('script'); e.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
-  e.onload = ok; e.onerror = () => no(new Error('โหลดตัวสร้าง QR ไม่ได้ (ต้องออนไลน์) — ใช้คัดลอกรหัสย้ายเครื่องแทน')); document.head.append(e);
-});
-function transferCode(all) { return 'nostrdash1.' + b64e({ sk, act: D().id, devs: (all ? root.devs : [D()]).map(d => ({ id: d.id, name: d.name, bsk: d.bsk, widgets: d.widgets })) }); }
-async function showQr() {
-  const box = $('#qrBox'), note = $('#qrNote'); box.replaceChildren();
-  try {
-    await loadQr(); const q = qrcode(0, 'L'); q.addData(transferCode($('#qrAll').value === '1')); q.make();
-    box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
-    note.textContent = 'เปิดฟังก์ชันนำเข้าในแอพมือถือแล้วสแกน หรือใช้ปุ่ม "คัดลอกรหัสย้ายเครื่อง" ไปวางแทน';
-  } catch (e) { note.textContent = /overflow/i.test(e.message) ? 'ข้อมูลยาวเกินกว่าจะใส่ใน QR — เลือก "เฉพาะอุปกรณ์ที่เปิดอยู่" หรือใช้คัดลอกรหัสแทน' : e.message; }
-}
-$('#cQr').onclick = () => { if (!confirm('QR นี้มีกุญแจลับ ใครสแกนได้ก็สั่งบอร์ดได้ เก็บเป็นความลับ ดำเนินการต่อ?')) return; $('#dlgQr').showModal(); showQr(); };
-$('#qrAll').onchange = showQr;
-$('#qrClose').onclick = () => { $('#qrBox').replaceChildren(); $('#dlgQr').close(); };
-
-// ---------- สแกน QR เพิ่มอุปกรณ์ ----------
-let scanStream = null, scanTimer = 0, scanBusy = false, scanDet = null;
-const loadJsQr = () => window.jsQR ? Promise.resolve() : new Promise((ok, no) => {
-  const e = document.createElement('script'); e.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-  e.onload = ok; e.onerror = () => no(new Error('โหลดตัวอ่าน QR ไม่ได้ (ต้องออนไลน์)')); document.head.append(e);
-});
-function stopScan() {
-  clearInterval(scanTimer); scanTimer = 0;
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  $('#scanVid').srcObject = null;
-}
-async function decodeQr(src, w, hgt) {
-  if (window.BarcodeDetector) {
-    try { scanDet = scanDet || new BarcodeDetector({ formats: ['qr_code'] }); const r = await scanDet.detect(src); if (r.length) return r[0].rawValue; return null; } catch (_) { /* ใช้ jsQR แทน */ }
-  }
-  await loadJsQr();
-  const c = document.createElement('canvas'); c.width = w; c.height = hgt;
-  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(src, 0, 0, w, hgt);
-  const r = jsQR(x.getImageData(0, 0, w, hgt).data, w, hgt, { inversionAttempts: 'attemptBoth' });
-  return r ? r.data : null;
-}
-async function openScan() {
-  for (const id of ['#dlgDev', '#dlgConn']) if ($(id).open) $(id).close();
-  $('#dlgScan').showModal(); $('#scanBox').style.display = '';
-  const note = $('#scanNote'); note.textContent = 'กำลังเปิดกล้อง…';
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('เบราว์เซอร์นี้เปิดกล้องไม่ได้ (ต้องใช้ผ่าน https) — ใช้ "เลือกรูป QR" แทน');
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-    const v = $('#scanVid'); v.srcObject = scanStream; await v.play();
-    note.textContent = 'เล็งกล้องไปที่ QR ให้อยู่ในกรอบ';
-    if (!window.BarcodeDetector) loadJsQr().catch(e => { note.textContent = e.message; });
-    scanTimer = setInterval(async () => {
-      if (scanBusy || !v.videoWidth) return; scanBusy = true;
-      try {
-        const k = Math.min(1, 640 / v.videoWidth);
-        const txt = await decodeQr(v, Math.round(v.videoWidth * k), Math.round(v.videoHeight * k));
-        if (txt && /^(nostrdash1|nvpn1)\./.test(txt.trim())) { stopScan(); await importScanned(txt.trim()); }
-        else if (txt) note.textContent = 'นี่ไม่ใช่ QR ของ NostrDash — ลองใหม่';
-      } catch (e) { note.textContent = e.message; }
-      scanBusy = false;
-    }, 250);
-  } catch (e) {
-    note.textContent = (e && e.name === 'NotAllowedError' ? 'ไม่ได้รับอนุญาตใช้กล้อง — เปิดสิทธิ์กล้องในเบราว์เซอร์ หรือใช้ "เลือกรูป QR" แทน' : (e.message || 'เปิดกล้องไม่ได้'));
-    $('#scanBox').style.display = 'none';
-  }
-}
-function closeScan() { stopScan(); if ($('#dlgScan').open) $('#dlgScan').close(); }
-async function importScanned(code) {
-  let j;
-  try {
-    j = b64d(code.replace(/^(nostrdash1|nvpn1)\./, ''));
-    const list = Array.isArray(j.devs) ? j.devs : [{ name: 'อุปกรณ์ 1', bsk: j.bsk, widgets: j.widgets }];
-    if (!isHex64(j.sk) || !list.length || !list.every(d => d && isHex64(d.bsk))) throw new Error('กุญแจไม่ถูกต้อง');
-    j.devs = list;
-  } catch (e) { toast('QR ไม่ถูกต้อง: ' + e.message); closeScan(); return; }
-  const names = j.devs.map(d => String(d.name || 'อุปกรณ์').slice(0, 30)).join(', ');
-  const diffKey = j.sk !== sk;
-  const msg = 'พบ ' + j.devs.length + ' อุปกรณ์: ' + names + '\nเพิ่มเข้าเครื่องนี้? (อุปกรณ์เดิมไม่ถูกลบ)' +
-    (diffKey ? '\n\n⚠️ กุญแจหน้าเว็บจะเปลี่ยนเป็นของเครื่องต้นทาง อุปกรณ์เดิมที่สร้างบนเครื่องนี้และไม่ได้อยู่ใน QR จะสั่งบอร์ดไม่ได้จนกว่าจะอัปโหลดโค้ดใหม่' : '');
-  if (!confirm(msg)) { closeScan(); return; }
-  let first = null, added = 0, updated = 0;
-  for (const d of j.devs) {
-    const ex = root.devs.find(x => (d.id && x.id === d.id) || x.bsk === d.bsk);
-    if (ex) { ex.name = String(d.name || ex.name).slice(0, 30); ex.widgets = Array.isArray(d.widgets) ? d.widgets : ex.widgets; first = first || ex.id; updated++; }
-    else {
-      if (root.devs.length >= 20) { toast('เพิ่มได้สูงสุด 20 อุปกรณ์'); break; }
-      const nd = { id: (typeof d.id === 'string' && d.id) ? d.id.slice(0, 20) : uid(), name: d.name, bsk: d.bsk, widgets: Array.isArray(d.widgets) ? d.widgets : [] };
-      root.devs.push(nd); first = first || nd.id; added++;
-    }
-  }
-  if (diffKey) { sk = j.sk; store.set('nostrdash.sk', sk); }
-  if (first) root.act = first;
-  closeScan(); await start();
-  toast('สแกนสำเร็จ — เพิ่ม ' + added + (updated ? ', อัปเดต ' + updated : '') + ' อุปกรณ์', 3500);
-}
-$('#bScan').onclick = openScan;
-$('#dvScan').onclick = openScan;
-$('#cScan').onclick = openScan;
-$('#scanClose').onclick = closeScan;
-$('#dlgScan').addEventListener('close', stopScan);
-$('#scanFile').onclick = () => $('#scanImg').click();
-$('#scanImg').onchange = async (e) => {
-  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-  try {
-    const bmp = await createImageBitmap(f);
-    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-    const txt = await decodeQr(bmp, Math.round(bmp.width * k), Math.round(bmp.height * k));
-    if (txt && /^(nostrdash1|nvpn1)\./.test(txt.trim())) { stopScan(); await importScanned(txt.trim()); }
-    else $('#scanNote').textContent = txt ? 'นี่ไม่ใช่ QR ของ NostrDash' : 'ไม่พบ QR ในรูปนี้ ลองรูปที่ชัดและเห็น QR ทั้งอัน';
-  } catch (er) { $('#scanNote').textContent = 'อ่านรูปไม่ได้: ' + er.message; }
-};
 $('#cRegen').onclick = async () => {
-  if (!confirm('สร้างกุญแจใหม่ของ "' + D().name + '" ? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดตัวนี้แล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
-  D().bsk = NL.genSecret(); saveCfg();
+  if (!confirm('สร้างกุญแจใหม่ทั้งหมด? ต้องคัดลอกโค้ดใหม่ไปใส่บอร์ดแล้วอัปโหลดซ้ำ ไม่งั้นบอร์ดเดิมจะไม่ตอบ')) return;
+  sk = NL.genSecret(); store.set('nostrc.sk', sk); cfg.bsk = NL.genSecret(); saveCfg();
   $('#dlgConn').close(); await start(); openConn();
 };
-$('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nostrdash.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
+$('#cClr').onclick = () => { if (confirm('ล้างประวัติกราฟทั้งหมด?')) { hist = {}; store.del('nostrc.hist'); widgetEls.forEach(x => x.update()); toast('ล้างแล้ว'); } };
 $('#bAdd').onclick = () => openWidgetDlg(null);
 $('#bEdit').onclick = () => { editMode = !editMode; document.body.classList.toggle('edit', editMode); $('#bEdit').textContent = editMode ? '✅' : '✏️'; };
 $('#monClr').onclick = () => { $('#monBody').replaceChildren(); };
@@ -1181,14 +1039,15 @@ $('#bLog').onclick = (e) => { e.preventDefault(); $('#log').classList.toggle('sh
 // ---------- เริ่มต้น ----------
 async function start() {
   relays.splice(0).forEach(r => r.close());
+  lastStatusAt = 0; for (const k of Object.keys(ds)) delete ds[k];
   ensureKeys(); renderAll(); connectAll();
 }
-setInterval(updBoard, 1000);
-setInterval(() => store.set('nostrdash.hist', hist), 20000);
-window.addEventListener('pagehide', () => store.set('nostrdash.hist', hist));
+setInterval(updBoard, 1000); setInterval(flushOut, 300);
+setInterval(() => store.set('nostrc.hist', hist), 20000);
+window.addEventListener('pagehide', () => store.set('nostrc.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
-document.addEventListener('visibilitychange', () => { if (!document.hidden) requestStatus(); });
-start().then(() => { window.__nostrdash = { cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => D().pk, tx, relayState: () => relays.map(r => ({ bo: r.bo, until: r.until - Date.now(), banned: r.banned })), sendCmd: (o, l, f) => sendCmd(o, l, f), relaysOpen: () => relays.some(r => r.open) }; });
+document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 30000) requestStatus(); });   // กลับมาที่แท็บหลังหายไปนานค่อยถามสถานะ (ไม่ถามทุกครั้ง)
+start().then(() => { window.__nostrc = { net, relays, outq: OUTQ, cfg: () => cfg, ds, hist: () => hist, me: () => mePk, board: () => boardPk }; });
 })();
 </script>
 </body>

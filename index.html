@@ -84,6 +84,8 @@ footer{max-width:1100px;margin:0 auto;padding:6px 12px 24px;font-size:11px;color
 #toast.show{opacity:1}
 .empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:30px 10px}
 
+.ask{align-self:flex-start;font-size:12px;padding:6px 10px}.ask:disabled{opacity:.6}.big .txt{font-size:.62em;line-height:1.25;word-break:break-word}
+
 </style>
 <style>
 .hero{grid-column:1/-1;text-align:center;padding:26px 14px;color:var(--muted)}
@@ -124,6 +126,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <span class="pill" title="ช่องทางที่ใช้อยู่: รีเลย์ หรือช่องทางสำรอง"><span class="dot" id="dLink"></span><span id="tLink">—</span></span>
   <button class="icon" id="bNet" title="สุขภาพการเชื่อมต่อ / ตั้งค่ารีเลย์">📶</button>
   <button class="icon add" id="bAdd" title="เพิ่ม widget">＋</button>
+  <button class="icon" id="bAsk" title="ขอค่าทุกช่องแสดงค่า (แพ็กในคำสั่งเดียว)">🔄</button>
   <button class="icon" id="bConn" title="โค้ดเชื่อมบอร์ด">🔌</button>
   <button class="icon" id="bEdit" title="จัดเรียง/แก้ไข/ลบ">✏️</button>
 </header>
@@ -201,7 +204,7 @@ header .add{background:var(--accent);border-color:var(--accent);color:#fff}
   <table class="pins"><thead><tr><th>pin</th><th>widget</th><th>ทิศทาง</th></tr></thead><tbody id="cPins"></tbody></table>
   <label>ตัวอย่างวิธีใช้ในโค้ดบอร์ด</label>
   <textarea id="cUse" readonly spellcheck="false" style="min-height:130px"></textarea>
-  <div class="note">ติดตั้งไลบรารี <code>NostrC</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrC.onRead(PIN, ฟังก์ชันอ่านค่า, deadband)</code> ลงทะเบียนครั้งเดียว ไลบรารีอ่านและส่งเอง (ไม่ส่งถี่เกินงบ) · ถ้าแก้รายการรีเลย์ที่ปุ่ม 📶 ต้องคัดลอกโค้ดนี้ไปอัปโหลดบอร์ดใหม่ด้วย</div>
+  <div class="note">ติดตั้งไลบรารี <code>NostrC</code> ใน Arduino IDE (ต้องมี <code>nvpn-esp32</code>, <code>WebSockets</code> และ <code>ArduinoJson</code> v7 ด้วย) <code>NostrC.onQuery(PIN, ฟังก์ชันอ่านค่า)</code> ลงทะเบียนครั้งเดียว บอร์ดอ่านและตอบเฉพาะตอนกด 🔄 ขอค่า (ไม่ส่งต่อเนื่อง) · ถ้าแก้รายการรีเลย์ที่ปุ่ม 📶 ต้องคัดลอกโค้ดนี้ไปอัปโหลดบอร์ดใหม่ด้วย</div>
   <label>ย้ายไปเครื่องอื่น / สำรอง</label>
   <div class="row">
     <button id="cExp">คัดลอกรหัสย้ายเครื่อง</button>
@@ -340,6 +343,7 @@ function pinName(pin) { const w = cfg.widgets.find(x => x.key === pin); return w
 function cmdTitle(r) {
   if (r.cmd === 'vw') return '→ สั่ง ' + pinName(r.pin) + ' = ' + fmt(Number(r.arg));
   if (r.cmd === 'status') return '→ ขอสถานะจากบอร์ด';
+  if (r.cmd === 'get') return '→ ขอค่า ' + (r.pins || []).map(pinName).join(', ') + ' (ครั้งเดียว)';
   return '→ ส่งคำสั่ง ' + r.cmd;
 }
 function renderCmd(r) {
@@ -357,7 +361,7 @@ function renderCmd(r) {
     lines.push((r.replied ? '✓ บอร์ดรับคำสั่ง (' + r.repMs + ' ms)' : '• ไม่ได้รับคำตอบ แต่สถานะจากบอร์ดตรงกัน') + '   ✓ ทำงานแล้ว: ค่าจริงจากบอร์ด = ' + fmt(Number(r.arg)) + ' (' + r.confMs + ' ms)');
   } else if (r.replied) {
     cls = 'cmd ok';
-    lines.push('✓ บอร์ดรับคำสั่ง (' + r.repMs + ' ms)' + (r.cmd === 'vw' ? '   ⏳ รอค่าจริงจากบอร์ดยืนยัน…' : ''));
+    lines.push(r.cmd === 'get' ? '✓ ได้ค่าจากบอร์ดแล้ว (' + r.repMs + ' ms)' : '✓ บอร์ดรับคำสั่ง (' + r.repMs + ' ms)' + (r.cmd === 'vw' ? '   ⏳ รอค่าจริงจากบอร์ดยืนยัน…' : ''));
   } else if (r.timedOut) {
     cls = 'cmd bad';
     lines.push(r.relayOk.length ? '✗ ไม่มีคำตอบจากบอร์ดใน ' + (CMD_TIMEOUT / 1000) + ' วินาที — บอร์ดออนไลน์อยู่ไหม? ใส่โค้ด 🔌 ล่าสุดแล้วหรือยัง? (ถ้ารีเลย์ไม่ส่งต่อ kind 21078 บอร์ดจะไม่เห็นคำสั่ง)'
@@ -367,7 +371,7 @@ function renderCmd(r) {
   monSet(r.el, cls, head, lines.join('\n'));
 }
 function trackCmd(ev, obj) {
-  const r = { id: ev.id, cmd: obj.cmd, pin: obj.pin, arg: obj.arg, t: Date.now(), relayOk: [], relayNo: [], replied: false, ok: null, confirmed: false, timedOut: false };
+  const r = { id: ev.id, cmd: obj.cmd, pin: obj.pin, arg: obj.arg, pins: obj.pins, t: Date.now(), relayOk: [], relayNo: [], replied: false, ok: null, confirmed: false, timedOut: false };
   r.el = monAdd('cmd', '', ''); cmds.set(ev.id, r); renderCmd(r);
   r.timer = setTimeout(() => { if (!r.replied && !r.confirmed) { r.timedOut = true; renderCmd(r); } }, CMD_TIMEOUT);
   setTimeout(() => cmds.delete(ev.id), 60000);
@@ -426,6 +430,7 @@ const saveCfg = () => store.set('nostrc.cfg', cfg);
 // ---------- widget model ----------
 const TYPES = { switch: 'สวิตช์', slider: 'สไลเดอร์', value: 'ตัวเลข', gauge: 'เกจ', chart: 'กราฟ' };
 const isControl = (t) => t === 'switch' || t === 'slider';
+const isQuery = (t) => t === 'value' || t === 'gauge' || t === 'chart';   // ตอบเมื่อกดขอค่าเท่านั้น ไม่ส่งต่อเนื่อง (ไม่เปลืองอีเวนต์ ไม่โดนรีเลย์จำกัด)
 function sanitizeWidget(w) {
   if (!w || typeof w !== 'object' || !TYPES[w.type]) return null;
   const n = (x) => (x === '' || x == null || !isFinite(Number(x))) ? '' : Number(x);
@@ -671,12 +676,22 @@ function onStatus(body, ev) {
   updBoard(); cmdStatusCheck(flat, t);
   if (ctlChanged.length && !Array.from(cmds.values()).some(r => r.confirmed && t - (r.t + r.confMs) < 1500)) monAdd('info', '← สถานะจากบอร์ดเปลี่ยน: ' + ctlChanged.map(x => { const [k, v] = x.split(' = '); return pinName(k) + ' = ' + v; }).join(', '));
 }
+function applyGet(body) {                 // คำตอบของ {"cmd":"get"}: s = ข้อความที่บอร์ดแพ็กมา, miss = บอร์ดอ่านไม่ได้
+  const t = Date.now();
+  if (body.s && typeof body.s === 'object' && !Array.isArray(body.s)) for (const [k, v] of Object.entries(body.s)) {
+    if (!/^V\d{1,3}$/.test(k) || typeof v !== 'string') continue;
+    ds[k] = { v: ds[k] ? ds[k].v : undefined, ts: t, s: v.slice(0, 60) };
+  }
+  if (Array.isArray(body.miss)) for (const k of body.miss) if (/^V\d{1,3}$/.test(String(k))) qState[k] = { at: (qState[k] && qState[k].at) || t, miss: true };
+  widgetEls.forEach(x => x.update());
+}
 function onReply(body, ev) {
   const e = (ev.tags || []).find(t => t[0] === 'e');
   const p = e && pending.get(e[1]);
   log('ตอบกลับ', JSON.stringify(body).slice(0, 200));
   if (e) cmdReply(e[1], body);
   if (body && body.v && typeof body.v === 'object' && !Array.isArray(body.v)) onStatus(body.v, { tags: [] });   // คำตอบพกค่าจริงมาด้วย (ประหยัดอีเวนต์)
+  if (body && body.msg === 'get') applyGet(body);
   if (p) {
     pending.delete(e[1]);
     if (body && body.ok === false) toast('บอร์ดปฏิเสธ: ' + (body.err || body.error || '?'));
@@ -695,6 +710,10 @@ function updBoard() {
 const OUTQ = [], lastPinSend = {};
 function sendCmd(obj, label, onDone, onFail) {
   if (obj.cmd === 'vw') { const i = OUTQ.findIndex(q => q.obj.cmd === 'vw' && q.obj.pin === obj.pin); if (i >= 0) OUTQ.splice(i, 1); }   // สไลเดอร์ลากรัว: เก็บเฉพาะค่าล่าสุด
+  else if (obj.cmd === 'get') {                                   // ขอค่าหลายช่องในเวลาใกล้กัน → แพ็กเป็นคำสั่งเดียว
+    const q = OUTQ.find(x => x.obj.cmd === 'get');
+    if (q) { q.obj.pins = [...new Set([...q.obj.pins, ...obj.pins])].slice(0, 16); const d0 = q.onDone, f0 = q.onFail; q.onDone = (b, m) => { d0 && d0(b, m); onDone && onDone(b, m); }; q.onFail = () => { f0 && f0(); onFail && onFail(); }; return 'merged'; }
+  }
   else if (OUTQ.some(q => q.obj.cmd === obj.cmd)) return 'dup';
   OUTQ.push({ obj, label, onDone, onFail, at: Date.now() }); flushOut(); return 'queued';
 }
@@ -813,16 +832,45 @@ function mkSlider(w) {
   }
   return { el, update };
 }
+// ---------- ขอค่า (ตอบเมื่อถูกขอ) ----------
+const qState = {};      // key -> { at: เวลาที่ขอ, miss, fail }
+const ASK_GAP = 3000;
+function qPending(k) { const q = qState[k]; return !!(q && q.at && !q.miss && !q.fail && Date.now() - q.at < CMD_TIMEOUT && !(ds[k] && ds[k].ts >= q.at)); }
+function askPins(keys) {
+  const t = Date.now(); keys = [...new Set(keys)];
+  const fresh = keys.filter(k => !qState[k] || !qState[k].at || t - qState[k].at > ASK_GAP || qState[k].fail || qState[k].miss);
+  if (!fresh.length) { toast('รอสักครู่ เพิ่งขอไป'); return false; }
+  for (const k of fresh) qState[k] = { at: t };
+  widgetEls.forEach(x => x.update());
+  sendCmd({ cmd: 'get', pins: fresh }, 'q', (body) => {
+    if (body && body.ok === false) for (const k of fresh) qState[k] = { at: t, fail: true };
+    widgetEls.forEach(x => x.update());
+  }, () => { for (const k of fresh) qState[k] = { at: t, fail: true }; widgetEls.forEach(x => x.update()); });
+  setTimeout(() => widgetEls.forEach(x => x.update()), CMD_TIMEOUT + 300);
+  return true;
+}
+function queryNote(w) {
+  const q = qState[w.key], d = ds[w.key];
+  if (qPending(w.key)) return '⏳ กำลังขอค่า…';
+  if (q && q.miss) return '✗ บอร์ดอ่านค่านี้ไม่ได้';
+  if (q && q.fail) return '✗ ไม่ได้รับคำตอบ (บอร์ดออฟไลน์? หรือยังไม่ใส่โค้ด 🔌 ล่าสุด)';
+  if (q && q.at && Date.now() - q.at >= CMD_TIMEOUT && !(d && d.ts >= q.at)) return '✗ ไม่ได้รับคำตอบ';
+  if (d) { const a = Math.round((Date.now() - d.ts) / 1000); return 'อ่านเมื่อ ' + new Date(d.ts).toLocaleTimeString('th-TH') + ' (' + (a < 60 ? a + ' วิ' : Math.round(a / 60) + ' นาที') + 'ที่แล้ว)'; }
+  return 'กด 🔄 เพื่อขอค่า (ไม่ส่งต่อเนื่อง)';
+}
+function askBtn(w) { return h('button', { class: 'ask', text: '🔄 ขอค่า', onclick: () => askPins([w.key]) }); }
+function paintAsk(w, btn, sub) { const p = qPending(w.key); btn.disabled = p; btn.textContent = p ? 'กำลังขอ…' : '🔄 ขอค่า'; sub.textContent = queryNote(w); }
 function mkValue(w) {
-  const big = h('div', { class: 'big', text: '—' }), sub = h('div', { class: 'sub' });
-  const el = cardBase(w, big, sub);
+  const big = h('div', { class: 'big', text: '—' }), sub = h('div', { class: 'sub' }), btn = askBtn(w);
+  const el = cardBase(w, big, sub, btn);
   function update() {
     const d = ds[w.key]; big.textContent = '';
-    if (!d) { big.textContent = '—'; sub.textContent = 'รอค่าจากบอร์ด'; return; }
-    big.append(typeof d.v === 'string' ? d.v : fmt(num(d.v)), h('small', { text: w.unit }));
-    sub.textContent = 'อัปเดต ' + new Date(d.ts).toLocaleTimeString('th-TH');
+    if (!d) big.textContent = '—';
+    else if (d.s) { big.append(h('span', { class: 'txt', text: d.s })); }     // ข้อความที่บอร์ดแพ็กมา (แสดงตรงๆ)
+    else big.append(typeof d.v === 'string' ? d.v : fmt(num(d.v)), h('small', { text: w.unit }));
+    paintAsk(w, btn, sub);
   }
-  return { el, update };
+  return { el, update, query: true };
 }
 function mkGauge(w) {
   const { min, max } = rangeOf(w);
@@ -833,22 +881,25 @@ function mkGauge(w) {
   const t = svg('text', { x: '100', y: '92' }); t.textContent = '—';
   const u = svg('text', { x: '100', y: '112', class: 'u' }); u.textContent = w.unit;
   s.append(arc, t, u);
-  const el = cardBase(w, s);
+  const sub = h('div', { class: 'sub' }), btn = askBtn(w);
+  const el = cardBase(w, s, sub, btn);
   function update() {
     const d = ds[w.key]; const n = d ? num(d.v) : NaN;
+    u.textContent = (d && d.s) || w.unit; paintAsk(w, btn, sub);
     if (!isFinite(n)) { t.textContent = '—'; arc.setAttribute('stroke-dasharray', '0 100'); return; }
     t.textContent = fmt(n);
     arc.setAttribute('stroke-dasharray', (clamp((n - min) / ((max - min) || 1), 0, 1) * 100).toFixed(1) + ' 100');
   }
-  return { el, update };
+  return { el, update, query: true };
 }
 const RANGES = [[300, '5 นาที'], [3600, '1 ชม.'], [86400, '24 ชม.'], [0, 'ทั้งหมด']];
 function mkChart(w) {
   const cv = h('canvas', { role: 'img', 'aria-label': w.label, title: 'แตะเพื่อเปลี่ยนช่วงเวลา' });
-  const sub = h('div', { class: 'sub' });
+  const sub = h('div', { class: 'sub' }), sub2 = h('div', { class: 'sub' }), btn = askBtn(w);
   cv.addEventListener('click', () => { const i = RANGES.findIndex(r => r[0] === w.range); w.range = RANGES[(i + 1) % RANGES.length][0]; saveCfg(); update(); });
-  const el = cardBase(w, cv, sub);
+  const el = cardBase(w, cv, sub, sub2, btn);
   function update() {
+    paintAsk(w, btn, sub2);
     const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 300, H = cv.clientHeight || 150;
     if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
@@ -856,7 +907,7 @@ function mkChart(w) {
     const nowMs = Date.now(), span = (w.range || 0) * 1000;
     const pts = (hist[w.key] || []).filter(p => !span || p[0] >= nowMs - span);
     const rl = RANGES.find(r => r[0] === (w.range || 0))[1];
-    sub.textContent = pts.length ? rl + ' · ' + pts.length + ' จุด · แตะเพื่อเปลี่ยนช่วง' : 'ยังไม่มีข้อมูล (เก็บเมื่อเปิดหน้านี้ไว้และบอร์ดส่งค่า)';
+    sub.textContent = pts.length ? rl + ' · ' + pts.length + ' จุด · แตะเพื่อเปลี่ยนช่วง' : 'ยังไม่มีข้อมูล (กด 🔄 ขอค่า — กราฟเพิ่มทีละจุดตามที่ขอ)';
     if (pts.length < 1) return;
     const t0 = span ? nowMs - span : pts[0][0], t1 = span ? nowMs : Math.max(pts[pts.length - 1][0], t0 + 1);
     let lo = w.min === '' ? Math.min(...pts.map(p => p[1])) : w.min, hi = w.max === '' ? Math.max(...pts.map(p => p[1])) : w.max;
@@ -871,7 +922,7 @@ function mkChart(w) {
     c.stroke();
     const last = pts[pts.length - 1]; c.fillStyle = col('--accent'); c.beginPath(); c.arc(X(last[0]), Y(last[1]), 3, 0, 7); c.fill();
   }
-  return { el, update };
+  return { el, update, query: true };
 }
 const MK = { switch: mkSwitch, slider: mkSlider, value: mkValue, gauge: mkGauge, chart: mkChart };
 
@@ -939,19 +990,20 @@ function genCode() {
   if (cfg.widgets.length) {
     L.push('// ===== ตำแหน่ง (pin) ของแต่ละ widget =====');
     const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : ' [บอร์ดส่ง]'));
+    for (const w of sorted) L.push(('#define PIN_' + w.key).padEnd(17) + ('"' + w.key + '"').padEnd(7) + '// ' + TYPES[w.type] + ': ' + w.label + (isControl(w.type) ? ' [บอร์ดรับ]' : ' [บอร์ดตอบเมื่อขอ]'));
   } else L.push('// (ยังไม่มี widget — กด ＋ ในหน้าเว็บก่อน)');
   return L.join('\n');
 }
 function genUse() {
   const L = [];
   const byPin = (x, y) => Number(x.key.slice(1)) - Number(y.key.slice(1));
-  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin), oo = cfg.widgets.filter(w => !isControl(w.type) && w.type !== 'chart' || false).sort(byPin);
-  const ch = cfg.widgets.filter(w => w.type === 'chart' && !oo.some(o => o.key === w.key)).sort(byPin);
+  const so = cfg.widgets.filter(w => isControl(w.type)).sort(byPin);
+  const qk = new Set(), qs = cfg.widgets.filter(w => isQuery(w.type) && !qk.has(w.key) && qk.add(w.key)).sort(byPin);
   L.push('void setup() {');
   for (const w of so) L.push('  NostrC.onWrite(PIN_' + w.key + ', [](float v) { /* ' + w.label + ': ' + (w.type === 'switch' ? 'v = 1 เปิด / 0 ปิด' : 'v = ค่าสไลเดอร์') + ' */ });');
   for (const w of so) L.push('  NostrC.set(PIN_' + w.key + ', 0);  // รายงานค่าเริ่มต้นของ ' + w.label);
-  for (const w of [...oo, ...ch]) L.push('  NostrC.onRead(PIN_' + w.key + ', [] { return 0; }, 0.5f);  // ' + w.label + ': ใส่ค่าที่อ่านได้ (0.5 = ส่งเมื่อเปลี่ยนเกิน 0.5 ลดอีเวนต์)');
+  for (const w of qs) L.push('  NostrC.onQuery(PIN_' + w.key + ', [] { return 0; });  // ' + w.label + ': ตอบเมื่อกด 🔄 เท่านั้น — ใส่ค่าที่อ่านได้ (ไม่ส่งต่อเนื่อง)');
+  if (qs.length) L.push('  // อยากแพ็กเป็นข้อความเอง (แสดงบนการ์ดตรงๆ): NostrC.onQueryText(PIN_' + qs[0].key + ', [](char *o, size_t n) { snprintf(o, n, "%.1f C", 0.0f); });');
   L.push('  NostrC.begin("ชื่อWiFi", "รหัสWiFi", NOSTRC_BOARD_SECRET, NOSTRC_CONTROLLER, NOSTRC_RELAYS, "board-1", NOSTRC_MAILBOX);');
   L.push('}');
   L.push('');
@@ -964,7 +1016,7 @@ function openConn() {
   $('#cCode').value = genCode(); $('#cUse').value = genUse();
   const tb = $('#cPins'); tb.replaceChildren();
   const sorted = [...cfg.widgets].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
-  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : 'บอร์ดส่งค่า' })));
+  for (const w of sorted) tb.append(h('tr', null, h('td', null, h('span', { class: 'pin', text: w.key })), h('td', { text: TYPES[w.type] + ' · ' + w.label }), h('td', { text: isControl(w.type) ? 'บอร์ดรับค่า' : 'บอร์ดตอบเมื่อกดขอ' })));
   if (!sorted.length) tb.append(h('tr', null, h('td', { colspan: '3', text: 'ยังไม่มี widget' })));
   $('#dlgConn').showModal(); $('#cCopy').focus(); $('#cCode').scrollTop = 0;
 }
@@ -973,6 +1025,7 @@ async function copyText(text, ta) {
   catch (_) { if (ta) { ta.focus(); ta.select(); try { document.execCommand('copy'); toast('คัดลอกแล้ว'); return; } catch (__) {} } toast('คัดลอกไม่ได้ — เลือกข้อความแล้วคัดลอกเอง'); }
 }
 $('#bConn').onclick = openConn;
+$('#bAsk').onclick = () => { const ks = cfg.widgets.filter(w => isQuery(w.type)).map(w => w.key); if (!ks.length) return toast('ยังไม่มีช่องแสดงค่า (ตัวเลข/เกจ/กราฟ)'); askPins(ks); };
 // ---------- สุขภาพการเชื่อมต่อ ----------
 const ST_TH = { idle: 'ว่าง/สำรอง', connecting: 'กำลังต่อ', up: 'ออนไลน์', backoff: 'รอต่อใหม่', blocked: 'พักรีเลย์นี้' };
 let netTimer = null;
@@ -1042,7 +1095,7 @@ async function start() {
   lastStatusAt = 0; for (const k of Object.keys(ds)) delete ds[k];
   ensureKeys(); renderAll(); connectAll();
 }
-setInterval(updBoard, 1000); setInterval(flushOut, 300);
+setInterval(updBoard, 1000); setInterval(flushOut, 300); setInterval(() => widgetEls.forEach(x => x.query && x.update()), 1000);
 setInterval(() => store.set('nostrc.hist', hist), 20000);
 window.addEventListener('pagehide', () => store.set('nostrc.hist', hist));
 window.addEventListener('resize', () => widgetEls.forEach((x, id) => { const w = cfg.widgets.find(q => q.id === id); if (w && w.type === 'chart') x.update(); }));
